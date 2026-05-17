@@ -1,21 +1,11 @@
-// OpenCV.jsの読み込み待ち（最大30秒）
 const waitForOpenCV = () => {
   return new Promise((resolve, reject) => {
-    if (window.cv && window.cv.Mat) {
-      resolve();
-      return;
-    }
+    if (window.cv && window.cv.Mat) { resolve(); return; }
     let count = 0;
     const interval = setInterval(() => {
       count++;
-      if (window.cv && window.cv.Mat) {
-        clearInterval(interval);
-        resolve();
-      }
-      if (count > 300) {
-        clearInterval(interval);
-        reject(new Error('OpenCV読み込みタイムアウト'));
-      }
+      if (window.cv && window.cv.Mat) { clearInterval(interval); resolve(); }
+      if (count > 300) { clearInterval(interval); reject(new Error('タイムアウト')); }
     }, 100);
   });
 };
@@ -29,8 +19,9 @@ const dataURLToMat = (dataURL) => {
       canvas.height = img.height;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const mat = window.cv.matFromImageData(imageData);
+      const mat = window.cv.matFromImageData(
+        ctx.getImageData(0, 0, canvas.width, canvas.height)
+      );
       resolve(mat);
     };
     img.src = dataURL;
@@ -47,33 +38,28 @@ const matToDataURL = (mat) => {
 
 export const stitchFrames = async (frames, onProgress) => {
   try {
-    onProgress && onProgress('OpenCV読み込み待機中...');
+    onProgress && onProgress('OpenCV待機中...');
     await waitForOpenCV();
-    onProgress && onProgress('OpenCV ✓ ORB:' + (typeof cv.ORB) + ' BFMatcher:' + (typeof cv.BFMatcher));
   } catch (err) {
-    onProgress && onProgress('OpenCV読み込み失敗: ' + err.message);
+    onProgress && onProgress('OpenCV失敗: ' + err.message);
     return frames[0];
   }
 
   const cv = window.cv;
-
-  if (frames.length === 1) {
-    return frames[0];
-  }
+  if (frames.length === 1) return frames[0];
 
   try {
-    onProgress && onProgress('フレーム変換中...');
+    onProgress && onProgress('フレーム読み込み中...');
     const frame1 = await dataURLToMat(frames[0]);
     const frame2 = await dataURLToMat(frames[frames.length - 1]);
 
-    onProgress && onProgress('グレースケール変換中...');
     const gray1 = new cv.Mat();
     const gray2 = new cv.Mat();
     cv.cvtColor(frame1, gray1, cv.COLOR_RGBA2GRAY);
     cv.cvtColor(frame2, gray2, cv.COLOR_RGBA2GRAY);
 
-    onProgress && onProgress('ORB特徴点検出中...');
-    const orb = new cv.ORB(500);
+    onProgress && onProgress('特徴点検出中...');
+    const orb = new cv.ORB(1000);
     const kp1 = new cv.KeyPointVector();
     const kp2 = new cv.KeyPointVector();
     const desc1 = new cv.Mat();
@@ -83,7 +69,14 @@ export const stitchFrames = async (frames, onProgress) => {
     orb.detectAndCompute(gray1, mask, kp1, desc1);
     orb.detectAndCompute(gray2, mask, kp2, desc2);
 
-    onProgress && onProgress(`kp1:${kp1.size()} kp2:${kp2.size()} マッチング中...`);
+    onProgress && onProgress(`kp1:${kp1.size()} kp2:${kp2.size()}`);
+
+    if (desc1.rows === 0 || desc2.rows === 0) {
+      onProgress && onProgress('特徴点なし → 1枚目を使用');
+      frame1.delete(); frame2.delete();
+      gray1.delete(); gray2.delete();
+      return frames[0];
+    }
 
     const bf = new cv.BFMatcher(cv.NORM_HAMMING, true);
     const matches = new cv.DMatchVector();
@@ -91,15 +84,15 @@ export const stitchFrames = async (frames, onProgress) => {
 
     const goodMatches = [];
     for (let i = 0; i < matches.size(); i++) {
-      if (matches.get(i).distance < 50) {
+      if (matches.get(i).distance < 60) {
         goodMatches.push(matches.get(i));
       }
     }
 
-    onProgress && onProgress(`良いマッチ: ${goodMatches.length}点`);
+    onProgress && onProgress(`マッチ: ${goodMatches.length}点`);
 
     if (goodMatches.length < 4) {
-      onProgress && onProgress(`マッチ不足(${goodMatches.length}) → 最初のフレームを使用`);
+      onProgress && onProgress('マッチ不足 → 1枚目を使用');
       frame1.delete(); frame2.delete();
       gray1.delete(); gray2.delete();
       desc1.delete(); desc2.delete();
@@ -109,38 +102,47 @@ export const stitchFrames = async (frames, onProgress) => {
     }
 
     onProgress && onProgress('ホモグラフィ計算中...');
-    const srcPoints = [];
-    const dstPoints = [];
+    const srcPts = [];
+    const dstPts = [];
     goodMatches.forEach(m => {
       const p1 = kp1.get(m.queryIdx).pt;
       const p2 = kp2.get(m.trainIdx).pt;
-      srcPoints.push(p1.x, p1.y);
-      dstPoints.push(p2.x, p2.y);
+      srcPts.push(p2.x, p2.y); // frame2の点
+      dstPts.push(p1.x, p1.y); // frame1の点
     });
 
-    const srcMat = cv.matFromArray(goodMatches.length, 1, cv.CV_32FC2, srcPoints);
-    const dstMat = cv.matFromArray(goodMatches.length, 1, cv.CV_32FC2, dstPoints);
+    const srcMat = cv.matFromArray(goodMatches.length, 1, cv.CV_32FC2, srcPts);
+    const dstMat = cv.matFromArray(goodMatches.length, 1, cv.CV_32FC2, dstPts);
     const H = cv.findHomography(srcMat, dstMat, cv.RANSAC, 5.0);
 
-    onProgress && onProgress('ワーピング中...');
-    const result = new cv.Mat();
-    const size = new cv.Size(frame1.cols + frame2.cols, frame1.rows);
-    cv.warpPerspective(frame1, result, H, size);
+    onProgress && onProgress('パノラマ合成中...');
 
-    const roi = result.roi(new cv.Rect(frame1.cols, 0, frame2.cols, frame2.rows));
-    frame2.copyTo(roi);
+    // frame2をframe1の座標系にワープ
+    const w = frame1.cols + frame2.cols;
+    const h = Math.max(frame1.rows, frame2.rows);
+    const warped = new cv.Mat();
+    const size = new cv.Size(w, h);
+    cv.warpPerspective(frame2, warped, H, size);
 
-    const resultURL = matToDataURL(result);
+    // frame1をそのまま左側に配置
+    const result = new cv.Mat(h, w, frame1.type());
+    result.setTo(new cv.Scalar(0, 0, 0, 0));
+
+    // warpedにframe1を上書き（frame1が基準）
+    const roi1 = warped.roi(new cv.Rect(0, 0, frame1.cols, frame1.rows));
+    frame1.copyTo(roi1);
+
+    const resultURL = matToDataURL(warped);
 
     frame1.delete(); frame2.delete();
     gray1.delete(); gray2.delete();
     desc1.delete(); desc2.delete();
     kp1.delete(); kp2.delete();
-    matches.delete(); result.delete();
+    matches.delete(); mask.delete();
     srcMat.delete(); dstMat.delete();
-    H.delete(); mask.delete();
+    H.delete(); warped.delete(); result.delete();
 
-    onProgress && onProgress('パノラマ合成完了！');
+    onProgress && onProgress('合成完了！');
     return resultURL;
 
   } catch (err) {
