@@ -1,166 +1,96 @@
-const waitForOpenCV = () => {
-  return new Promise((resolve, reject) => {
-    if (window.cv && window.cv.Mat) { resolve(); return; }
-    let count = 0;
-    const interval = setInterval(() => {
-      count++;
-      if (window.cv && window.cv.Mat) { clearInterval(interval); resolve(); }
-      if (count > 300) { clearInterval(interval); reject(new Error('タイムアウト')); }
-    }, 100);
-  });
+// ジャイロ・加速度センサーを使ったパノラマ合成
+
+let motionData = [];
+
+// センサー開始
+export const startMotionTracking = () => {
+  motionData = [];
+  const handler = (e) => {
+    motionData.push({
+      timestamp: Date.now(),
+      rotationAlpha: e.rotationRate?.alpha || 0,
+      rotationBeta: e.rotationRate?.beta || 0,
+      rotationGamma: e.rotationRate?.gamma || 0,
+      accX: e.accelerationIncludingGravity?.x || 0,
+      accY: e.accelerationIncludingGravity?.y || 0,
+    });
+  };
+  window.addEventListener('devicemotion', handler);
+  return handler;
 };
 
-const loadImage = (dataURL) => {
-  return new Promise((resolve) => {
+// センサー停止
+export const stopMotionTracking = (handler) => {
+  window.removeEventListener('devicemotion', handler);
+  return motionData;
+};
+
+// フレームとモーションデータからパノラマ合成
+export const stitchFrames = async (frames, motionLog, pixelsPerCm, onProgress) => {
+  onProgress && onProgress('パノラマ合成開始...');
+
+  if (frames.length === 0) return null;
+  if (frames.length === 1) return frames[0].dataURL;
+
+  // 各フレームの画像を読み込む
+  const loadImage = (dataURL) => new Promise((resolve) => {
     const img = new Image();
     img.onload = () => resolve(img);
     img.src = dataURL;
   });
-};
 
-const dataURLToMat = (dataURL) => {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0);
-      const mat = window.cv.matFromImageData(
-        ctx.getImageData(0, 0, canvas.width, canvas.height)
-      );
-      resolve(mat);
-    };
-    img.src = dataURL;
-  });
-};
+  onProgress && onProgress('フレーム読み込み中...');
+  const images = await Promise.all(frames.map(f => loadImage(f.dataURL)));
 
-export const stitchFrames = async (frames, onProgress) => {
-  try {
-    onProgress && onProgress('OpenCV待機中...');
-    await waitForOpenCV();
-  } catch (err) {
-    onProgress && onProgress('OpenCV失敗');
-    return frames[0];
+  const frameW = images[0].width;
+  const frameH = images[0].height;
+
+  // モーションデータからカメラの水平移動量を計算
+  onProgress && onProgress('移動量を計算中...');
+
+  // 各フレームのX方向オフセットを計算
+  const offsets = [0]; // 最初のフレームは0
+  for (let i = 1; i < frames.length; i++) {
+    const t1 = frames[i - 1].timestamp;
+    const t2 = frames[i].timestamp;
+
+    // この区間のモーションデータを取得
+    const motions = motionLog.filter(m => m.timestamp >= t1 && m.timestamp <= t2);
+
+    if (motions.length === 0) {
+      // モーションデータがない場合はフレームWの10%ずつずらす
+      offsets.push(offsets[i - 1] + frameW * 0.1);
+      continue;
+    }
+
+    // gamma（左右の傾き）の変化からX移動量を推定
+    let deltaGamma = 0;
+    motions.forEach(m => deltaGamma += m.rotationGamma);
+    deltaGamma /= motions.length;
+
+    // gammaの変化をピクセル移動量に変換
+    // 1度の回転 ≈ pixelsPerCm * 2cm の移動（経験値）
+    const pxPerDegree = (pixelsPerCm || 10) * 2;
+    const dx = deltaGamma * pxPerDegree * ((t2 - t1) / 1000);
+
+    offsets.push(offsets[i - 1] + Math.abs(dx));
   }
 
-  const cv = window.cv;
-  if (frames.length === 1) return frames[0];
+  onProgress && onProgress('キャンバスに描画中...');
 
-  try {
-    onProgress && onProgress('フレーム読み込み中...');
-    const frame1 = await dataURLToMat(frames[0]);
-    const frame2 = await dataURLToMat(frames[frames.length - 1]);
+  // 全体の幅を計算
+  const totalWidth = Math.round(offsets[offsets.length - 1] + frameW);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.min(totalWidth, frameW * frames.length);
+  canvas.height = frameH;
+  const ctx = canvas.getContext('2d');
 
-    const gray1 = new cv.Mat();
-    const gray2 = new cv.Mat();
-    cv.cvtColor(frame1, gray1, cv.COLOR_RGBA2GRAY);
-    cv.cvtColor(frame2, gray2, cv.COLOR_RGBA2GRAY);
-
-    onProgress && onProgress('特徴点検出中...');
-    const orb = new cv.ORB(1000);
-    const kp1 = new cv.KeyPointVector();
-    const kp2 = new cv.KeyPointVector();
-    const desc1 = new cv.Mat();
-    const desc2 = new cv.Mat();
-    const mask = new cv.Mat();
-
-    orb.detectAndCompute(gray1, mask, kp1, desc1);
-    orb.detectAndCompute(gray2, mask, kp2, desc2);
-
-    onProgress && onProgress(`kp1:${kp1.size()} kp2:${kp2.size()}`);
-
-    if (desc1.rows === 0 || desc2.rows === 0) {
-      onProgress && onProgress('特徴点なし');
-      frame1.delete(); frame2.delete();
-      gray1.delete(); gray2.delete();
-      return frames[0];
-    }
-
-    const bf = new cv.BFMatcher(cv.NORM_HAMMING, true);
-    const matches = new cv.DMatchVector();
-    bf.match(desc1, desc2, matches);
-
-    const goodMatches = [];
-    for (let i = 0; i < matches.size(); i++) {
-      if (matches.get(i).distance < 60) {
-        goodMatches.push(matches.get(i));
-      }
-    }
-
-    onProgress && onProgress(`マッチ: ${goodMatches.length}点`);
-
-    if (goodMatches.length < 4) {
-      onProgress && onProgress('マッチ不足');
-      frame1.delete(); frame2.delete();
-      gray1.delete(); gray2.delete();
-      desc1.delete(); desc2.delete();
-      kp1.delete(); kp2.delete();
-      matches.delete(); mask.delete();
-      return frames[0];
-    }
-
-    onProgress && onProgress('ホモグラフィ計算中...');
-
-    // frame1の点 → frame2の点
-    const srcPts = [];
-    const dstPts = [];
-    goodMatches.forEach(m => {
-      const p1 = kp1.get(m.queryIdx).pt;
-      const p2 = kp2.get(m.trainIdx).pt;
-      srcPts.push(p2.x, p2.y);
-      dstPts.push(p1.x, p1.y);
-    });
-
-    const srcMat = cv.matFromArray(goodMatches.length, 1, cv.CV_32FC2, srcPts);
-    const dstMat = cv.matFromArray(goodMatches.length, 1, cv.CV_32FC2, dstPts);
-
-    // H: frame1 → frame2 への変換行列
-    const H = cv.findHomography(srcMat, dstMat, cv.RANSAC, 5.0);
-
-    onProgress && onProgress('パノラマ合成中...');
-
-    // frame1をframe2の座標系にワープ
-    const w = frame1.cols + frame2.cols;
-    const h = Math.max(frame1.rows, frame2.rows);
-    const warped = new cv.Mat();
-    cv.warpPerspective(frame2, warped, H, new cv.Size(w, h));
-
-    // 結果canvasに描画
-    const resultCanvas = document.createElement('canvas');
-    resultCanvas.width = w;
-    resultCanvas.height = h;
-    const ctx = resultCanvas.getContext('2d');
-
-    // frame1を左側に描画
-    const frame1Canvas = document.createElement('canvas');
-    frame1Canvas.width = frame1.cols;
-    frame1Canvas.height = frame1.rows;
-    cv.imshow(frame1Canvas, frame1);
-    ctx.drawImage(frame1Canvas, 0, 0);
-
-    // warpedを右側に描画
-    const warpedCanvas = document.createElement('canvas');
-    warpedCanvas.width = warped.cols;
-    warpedCanvas.height = warped.rows;
-    cv.imshow(warpedCanvas, warped);
-    ctx.drawImage(warpedCanvas, frame1.cols, 0);
-    const resultURL = resultCanvas.toDataURL('image/jpeg', 0.8);
-
-    frame1.delete(); frame2.delete();
-    gray1.delete(); gray2.delete();
-    desc1.delete(); desc2.delete();
-    kp1.delete(); kp2.delete();
-    matches.delete(); mask.delete();
-    srcMat.delete(); dstMat.delete();
-    H.delete(); warped.delete();
-
-    onProgress && onProgress('合成完了！');
-    return resultURL;
-
-  } catch (err) {
-    onProgress && onProgress('エラー: ' + err.message);
-    return frames[0];
+  // 後ろのフレームから描画（前のフレームが上書き）
+  for (let i = images.length - 1; i >= 0; i--) {
+    const x = Math.round(offsets[i]);
+    ctx.drawImage(images[i], x, 0);
   }
+
+  onProgress && onProgress('合成完了！');
+  return canvas.toDataURL('image/jpeg', 0.8);
 };

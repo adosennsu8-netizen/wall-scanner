@@ -1,11 +1,12 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { stitchFrames } from './Panorama';
+import { startMotionTracking, stopMotionTracking, stitchFrames } from './Panorama';
 
 function VideoScanner({ pixelsPerCm, onComplete }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const animFrameRef = useRef(null);
   const framesRef = useRef([]);
+  const motionHandlerRef = useRef(null);
   const [isScanning, setIsScanning] = useState(false);
   const [frameCount, setFrameCount] = useState(0);
   const [status, setStatus] = useState('ready');
@@ -28,8 +29,14 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(video, 0, 0);
-    framesRef.current.push(canvas.toDataURL('image/jpeg', 0.5));
-    setFrameCount(framesRef.current.length);
+    // タイムスタンプ付きでフレームを保存（5フレームに1枚）
+    if (framesRef.current.length % 5 === 0) {
+      framesRef.current.push({
+        dataURL: canvas.toDataURL('image/jpeg', 0.5),
+        timestamp: Date.now()
+      });
+      setFrameCount(framesRef.current.length);
+    }
     animFrameRef.current = requestAnimationFrame(capture);
   }, []);
 
@@ -65,31 +72,39 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
     setIsScanning(true);
     setStatus('scanning');
     setProgressLog([]);
+    // ジャイロ開始
+    motionHandlerRef.current = startMotionTracking();
     animFrameRef.current = requestAnimationFrame(capture);
   };
 
   const stopScan = async () => {
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     setIsScanning(false);
+
+    // ジャイロ停止
+    const motionLog = stopMotionTracking(motionHandlerRef.current);
+    addLog(`モーションデータ: ${motionLog.length}件`);
+
     const frames = framesRef.current;
     if (!frames || frames.length === 0) {
       alert('フレームが取得できませんでした。');
       setStatus('ready');
       return;
     }
+
     setStatus('stitching');
-    setProgressLog([]);
+    addLog(`フレーム数: ${frames.length}枚`);
 
-    const step = Math.max(1, Math.floor(frames.length / 10));
-    const selectedFrames = frames.filter((_, i) => i % step === 0).slice(0, 10);
-    addLog(`フレーム数: ${frames.length} → ${selectedFrames.length}枚選択`);
+    const panorama = await stitchFrames(
+      frames,
+      motionLog,
+      pixelsPerCm,
+      (msg) => addLog(msg)
+    );
 
-    const panorama = await stitchFrames(selectedFrames, (msg) => {
-      addLog(msg);
-    });
+    setStatus('done');
+    addLog('完了');
 
-   setStatus('done');
-    addLog('→ 3秒後に次の画面へ');
     setTimeout(() => {
       onComplete && onComplete({
         imageUrl: panorama,
@@ -117,12 +132,11 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
         {status === 'done' && '✓ 完了'}
       </div>
 
-      {/* ログ表示（常に表示） */}
       {progressLog.length > 0 && (
         <div style={{
           backgroundColor: '#1a1a1a', borderRadius: '8px',
           padding: '10px', marginBottom: '8px',
-          fontSize: '11px', color: '#aaa',
+          fontSize: '14px', color: 'white',
           maxHeight: '150px', overflowY: 'auto'
         }}>
           {progressLog.map((log, i) => (
