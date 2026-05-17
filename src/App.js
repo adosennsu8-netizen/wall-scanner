@@ -2,6 +2,7 @@ import { useState } from 'react';
 import WallMarker from './WallMarker';
 import GuideFrame from './GuideFrame';
 import VideoScanner from './VideoScanner';
+import MultiScan from './MultiScan';
 import './App.css';
 
 function App() {
@@ -73,6 +74,18 @@ function App() {
             🎬 動画スキャンモード
           </button>
           <button
+            onClick={() => setStep('multi')}
+            style={{
+              backgroundColor: 'transparent', color: '#aaa',
+              border: '1px solid #333', borderRadius: '8px',
+              padding: '10px', fontSize: '14px',
+              cursor: 'pointer', display: 'block',
+              width: '100%', marginBottom: '8px'
+            }}
+          >
+            📷 複数枚合算モード
+          </button>
+          <button
             onClick={handleDebug}
             style={{
               backgroundColor: 'transparent', color: '#555',
@@ -124,6 +137,33 @@ function App() {
               setCapturedImage(result.imageUrl);
               setCardInfo({ id: 1, pixelsPerCm: result.pixelsPerCm || 10 });
               setStep('mark');
+            }}
+          />
+          <button
+            onClick={() => setStep('home')}
+            style={{
+              marginTop: '16px', backgroundColor: 'transparent',
+              color: '#555', border: '1px solid #333',
+              borderRadius: '8px', padding: '8px 20px',
+              cursor: 'pointer', fontSize: '12px'
+            }}
+          >
+            戻る
+          </button>
+        </div>
+      )}
+
+      {/* 複数枚合算画面 */}
+      {step === 'multi' && (
+        <div style={{ width: '100%', maxWidth: '480px', textAlign: 'center' }}>
+          <p style={{ color: '#aaa', fontSize: '13px', marginBottom: '12px' }}>
+            複数枚撮影して面積を合算します
+          </p>
+          <MultiScan
+            pixelsPerCm={cardInfo?.pixelsPerCm || 10}
+            onComplete={(result) => {
+              setArea(result);
+              setStep('result');
             }}
           />
           <button
