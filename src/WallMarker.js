@@ -168,8 +168,8 @@ function WallMarker({ imageUrl, pixelsPerCm, onComplete }) {
       </p>
       <canvas
         ref={canvasRef}
-        width={480}
-        height={360}
+        width={800}
+        height={450}
         onClick={handleTap}
         style={{ width: '100%', borderRadius: '12px', cursor: 'crosshair', border: '1px solid #333' }}
       />
