@@ -70,10 +70,12 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
     setIsScanning(false);
     setStatus('done');
     if (framesRef.current.length === 0) {
-      alert('有効なフレームが取得できませんでした。');
+      alert('フレームが取得できませんでした。もう一度試してください。');
       setStatus('ready');
       return;
     }
+    // 取得フレーム数をログ
+    console.log('取得フレーム数:', framesRef.current.length);
     onComplete && onComplete({
       imageUrl: framesRef.current[0],
       frameCount: framesRef.current.length,
