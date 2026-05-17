@@ -20,8 +20,8 @@ function App() {
   };
 
   // 面積計算完了
-  const handleComplete = (m2) => {
-    setArea(m2);
+ const handleComplete = (result) => {
+    setArea(result);
     setStep('result');
   };
 
@@ -142,35 +142,53 @@ function App() {
         </div>
       )}
 
-      {/* 結果画面 */}
+     {/* 結果画面 */}
       {step === 'result' && (
-        <div style={{ textAlign: 'center' }}>
+        <div style={{ textAlign: 'center', width: '100%', maxWidth: '480px' }}>
           <p style={{ color: '#aaa', fontSize: '14px', marginBottom: '8px' }}>
             計測結果
           </p>
           <div style={{ fontSize: '64px', fontWeight: 'bold', color: '#FF6200' }}>
-            {area}
+            {area?.net}
           </div>
-          <div style={{ fontSize: '24px', color: '#aaa', marginBottom: '30px' }}>
-            ㎡
+          <div style={{ fontSize: '24px', color: '#aaa', marginBottom: '20px' }}>
+            ㎡（正味）
           </div>
           <div style={{
             backgroundColor: '#1a1a1a',
             borderRadius: '12px',
             padding: '16px',
-            marginBottom: '30px',
-            border: '1px solid #333'
+            marginBottom: '20px',
+            border: '1px solid #333',
+            textAlign: 'left'
           }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <span style={{ color: '#aaa', fontSize: '14px' }}>壁 総面積</span>
+              <span style={{ color: 'white', fontSize: '14px' }}>{area?.wall} ㎡</span>
+            </div>
+            {area?.excludeCount > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <span style={{ color: '#FF6200', fontSize: '14px' }}>除外（{area?.excludeCount}箇所）</span>
+                <span style={{ color: '#FF6200', fontSize: '14px' }}>− {area?.exclude} ㎡</span>
+              </div>
+            )}
+            <div style={{
+              display: 'flex', justifyContent: 'space-between',
+              paddingTop: '10px', borderTop: '1px solid #333', marginBottom: '10px'
+            }}>
+              <span style={{ color: 'white', fontSize: '14px', fontWeight: 'bold' }}>正味面積</span>
+              <span style={{ color: '#FF6200', fontSize: '14px', fontWeight: 'bold' }}>{area?.net} ㎡</span>
+            </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span style={{ color: '#aaa', fontSize: '14px' }}>壁紙必要量（+10%）</span>
-              <span style={{ color: 'white', fontSize: '14px' }}>
-                {(parseFloat(area) * 1.1).toFixed(2)} ㎡
+              <span style={{ color: '#aaa', fontSize: '13px' }}>壁紙必要量（+10%）</span>
+              <span style={{ color: 'white', fontSize: '13px' }}>
+                {(parseFloat(area?.net) * 1.1).toFixed(2)} ㎡
               </span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: '#aaa', fontSize: '14px' }}>平方センチメートル</span>
-              <span style={{ color: 'white', fontSize: '14px' }}>
-                {Math.round(parseFloat(area) * 10000).toLocaleString()} cm²
+              <span style={{ color: '#aaa', fontSize: '13px' }}>平方センチメートル</span>
+              <span style={{ color: 'white', fontSize: '13px' }}>
+                {Math.round(parseFloat(area?.net) * 10000).toLocaleString()} cm²
               </span>
             </div>
           </div>
@@ -183,12 +201,9 @@ function App() {
             }}
             style={{
               backgroundColor: '#FF6200',
-              color: 'white',
-              border: 'none',
-              borderRadius: '12px',
-              padding: '14px 40px',
-              fontSize: '16px',
-              cursor: 'pointer'
+              color: 'white', border: 'none',
+              borderRadius: '12px', padding: '14px 40px',
+              fontSize: '16px', cursor: 'pointer', width: '100%'
             }}
           >
             もう一度計測する
