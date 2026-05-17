@@ -29,14 +29,12 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(video, 0, 0);
-    // タイムスタンプ付きでフレームを保存（5フレームに1枚）
-    if (framesRef.current.length % 5 === 0) {
-      framesRef.current.push({
-        dataURL: canvas.toDataURL('image/jpeg', 0.5),
-        timestamp: Date.now()
-      });
-      setFrameCount(framesRef.current.length);
-    }
+   // タイムスタンプ付きでフレームを保存
+    framesRef.current.push({
+      dataURL: canvas.toDataURL('image/jpeg', 0.5),
+      timestamp: Date.now()
+    });
+    setFrameCount(framesRef.current.length);
     animFrameRef.current = requestAnimationFrame(capture);
   }, []);
 
