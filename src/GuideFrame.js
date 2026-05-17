@@ -92,12 +92,11 @@ function GuideFrame({ onCalibrated }) {
       }
     })
     .catch(() => alert('カメラの許可が必要です。'));
-
-    return () => {
+const videoEl = videoRef.current;
+   return () => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-      const video = videoRef.current;
-      if (video && video.srcObject) {
-        video.srcObject.getTracks().forEach(t => t.stop());
+      if (videoEl && videoEl.srcObject) {
+        videoEl.srcObject.getTracks().forEach(t => t.stop());
       }
     };
   }, [detect]);
