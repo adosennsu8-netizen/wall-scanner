@@ -9,8 +9,12 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
   const [isScanning, setIsScanning] = useState(false);
   const [frameCount, setFrameCount] = useState(0);
   const [status, setStatus] = useState('ready');
-  const [progress, setProgress] = useState('');
+  const [progressLog, setProgressLog] = useState([]);
   const [errorMsg, setErrorMsg] = useState('');
+
+  const addLog = (msg) => {
+    setProgressLog(prev => [...prev, msg]);
+  };
 
   const capture = useCallback(() => {
     const video = videoRef.current;
@@ -60,7 +64,7 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
     setFrameCount(0);
     setIsScanning(true);
     setStatus('scanning');
-    setProgress('');
+    setProgressLog([]);
     animFrameRef.current = requestAnimationFrame(capture);
   };
 
@@ -73,19 +77,19 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
       setStatus('ready');
       return;
     }
-
-    const cvAvailable = !!(window.cv && window.cv.Mat);
     setStatus('stitching');
-    setProgress('OpenCV: ' + (cvAvailable ? '✓ 利用可能' : '✗ 読み込み中...'));
+    setProgressLog([]);
 
     const step = Math.max(1, Math.floor(frames.length / 10));
     const selectedFrames = frames.filter((_, i) => i % step === 0).slice(0, 10);
+    addLog(`フレーム数: ${frames.length} → ${selectedFrames.length}枚選択`);
 
     const panorama = await stitchFrames(selectedFrames, (msg) => {
-      setProgress(msg);
+      addLog(msg);
     });
 
     setStatus('done');
+    addLog('→ onCompleteを呼び出し');
     onComplete && onComplete({
       imageUrl: panorama,
       frameCount: frames.length,
@@ -100,29 +104,34 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
           {errorMsg}
         </div>
       )}
+
       <div style={{
         textAlign: 'center', fontSize: '13px', marginBottom: '8px',
-        color: status === 'scanning' ? '#00FF88' : status === 'stitching' ? '#FF6200' : '#aaa'
+        color: status === 'scanning' ? '#00FF88' : '#aaa'
       }}>
         {status === 'ready' && 'スキャン開始を押してください'}
         {status === 'scanning' && `スキャン中... ${frameCount}フレーム`}
-        {status === 'stitching' && progress}
-        {status === 'done' && '✓ パノラマ合成完了'}
+        {status === 'stitching' && 'パノラマ合成中...'}
+        {status === 'done' && '✓ 完了'}
       </div>
 
-      {status === 'stitching' && (
+      {/* ログ表示（常に表示） */}
+      {progressLog.length > 0 && (
         <div style={{
-          textAlign: 'center', padding: '40px',
-          backgroundColor: '#1a1a1a', borderRadius: '12px',
-          marginBottom: '8px', color: '#FF6200', fontSize: '14px'
+          backgroundColor: '#1a1a1a', borderRadius: '8px',
+          padding: '10px', marginBottom: '8px',
+          fontSize: '11px', color: '#aaa',
+          maxHeight: '150px', overflowY: 'auto'
         }}>
-          🔄 {progress}
+          {progressLog.map((log, i) => (
+            <div key={i} style={{ marginBottom: '2px' }}>{log}</div>
+          ))}
         </div>
       )}
 
       {status !== 'stitching' && (
         <div style={{
-          position: 'relative', width: '100%', height: '360px',
+          position: 'relative', width: '100%', height: '300px',
           backgroundColor: '#000', borderRadius: '12px', overflow: 'hidden'
         }}>
           <video
