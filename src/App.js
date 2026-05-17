@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import WallMarker from './WallMarker';
 import GuideFrame from './GuideFrame';
+import VideoScanner from './VideoScanner';
 import './App.css';
 
 function App() {
@@ -80,6 +81,56 @@ function App() {
           >
             デバッグ：カードなしで進む
           </button>
+          <button
+            onClick={() => setStep('video')}
+            style={{
+              marginTop: '8px',
+              backgroundColor: 'transparent',
+              color: '#555',
+              border: '1px solid #333',
+              borderRadius: '8px',
+              padding: '8px 20px',
+              cursor: 'pointer',
+              fontSize: '12px',
+              display: 'block',
+              width: '100%',
+              maxWidth: '300px',
+              margin: '8px auto 0'
+            }}
+          >
+            🎬 動画スキャンモード
+          </button>
+          {/* 動画スキャン画面 */}
+      {step === 'video' && (
+        <div style={{ width: '100%', maxWidth: '480px', textAlign: 'center' }}>
+          <p style={{ color: '#aaa', fontSize: '13px', marginBottom: '12px' }}>
+            カードを固定して壁全体をゆっくりスキャン
+          </p>
+          <VideoScanner
+            pixelsPerCm={cardInfo?.pixelsPerCm || 10}
+            onComplete={(result) => {
+              setCapturedImage(result.imageUrl);
+              setCardInfo({ id: 1, pixelsPerCm: result.pixelsPerCm || 10 });
+              setStep('mark');
+            }}
+          />
+          <button
+            onClick={() => setStep('home')}
+            style={{
+              marginTop: '16px',
+              backgroundColor: 'transparent',
+              color: '#555',
+              border: '1px solid #333',
+              borderRadius: '8px',
+              padding: '8px 20px',
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+          >
+            戻る
+          </button>
+        </div>
+      )}
         </div>
       )}
 
