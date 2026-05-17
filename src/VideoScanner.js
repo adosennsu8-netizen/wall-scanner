@@ -23,12 +23,10 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(video, 0, 0);
-    const result = detectArUco(canvas);
-    if (result && result.valid) {
-      if (framesRef.current.length % 5 === 0) {
-        framesRef.current.push(canvas.toDataURL('image/jpeg', 0.6));
-        setFrameCount(framesRef.current.length);
-      }
+    // ArUcoが映っていなくてもフレームを保存（テスト用）
+    if (framesRef.current.length % 5 === 0) {
+      framesRef.current.push(canvas.toDataURL('image/jpeg', 0.6));
+      setFrameCount(framesRef.current.length);
     }
     animFrameRef.current = requestAnimationFrame(capture);
   }, []);
