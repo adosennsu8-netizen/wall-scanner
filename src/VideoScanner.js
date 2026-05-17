@@ -73,13 +73,13 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
       setStatus('ready');
       return;
     }
-    setStatus('stitching');
-    setProgress('パノラマ合成を開始...');
 
-    // フレームを間引く（最大10枚）
+    const cvAvailable = !!(window.cv && window.cv.Mat);
+    setStatus('stitching');
+    setProgress('OpenCV: ' + (cvAvailable ? '✓ 利用可能' : '✗ 読み込み中...'));
+
     const step = Math.max(1, Math.floor(frames.length / 10));
     const selectedFrames = frames.filter((_, i) => i % step === 0).slice(0, 10);
-    setProgress(`${selectedFrames.length}フレームで合成中...`);
 
     const panorama = await stitchFrames(selectedFrames, (msg) => {
       setProgress(msg);
