@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
+import { stitchFrames } from './Panorama';
 
 function VideoScanner({ pixelsPerCm, onComplete }) {
   const videoRef = useRef(null);
@@ -8,6 +9,7 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
   const [isScanning, setIsScanning] = useState(false);
   const [frameCount, setFrameCount] = useState(0);
   const [status, setStatus] = useState('ready');
+  const [progress, setProgress] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
   const capture = useCallback(() => {
@@ -58,10 +60,11 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
     setFrameCount(0);
     setIsScanning(true);
     setStatus('scanning');
+    setProgress('');
     animFrameRef.current = requestAnimationFrame(capture);
   };
 
-  const stopScan = () => {
+  const stopScan = async () => {
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     setIsScanning(false);
     const frames = framesRef.current;
@@ -70,9 +73,21 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
       setStatus('ready');
       return;
     }
+    setStatus('stitching');
+    setProgress('パノラマ合成を開始...');
+
+    // フレームを間引く（最大10枚）
+    const step = Math.max(1, Math.floor(frames.length / 10));
+    const selectedFrames = frames.filter((_, i) => i % step === 0).slice(0, 10);
+    setProgress(`${selectedFrames.length}フレームで合成中...`);
+
+    const panorama = await stitchFrames(selectedFrames, (msg) => {
+      setProgress(msg);
+    });
+
     setStatus('done');
     onComplete && onComplete({
-      imageUrl: frames[Math.floor(frames.length / 2)],
+      imageUrl: panorama,
       frameCount: frames.length,
       pixelsPerCm
     });
@@ -87,42 +102,57 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
       )}
       <div style={{
         textAlign: 'center', fontSize: '13px', marginBottom: '8px',
-        color: status === 'scanning' ? '#00FF88' : '#aaa'
+        color: status === 'scanning' ? '#00FF88' : status === 'stitching' ? '#FF6200' : '#aaa'
       }}>
         {status === 'ready' && 'スキャン開始を押してください'}
         {status === 'scanning' && `スキャン中... ${frameCount}フレーム`}
-        {status === 'done' && `✓ 完了（${frameCount}フレーム）`}
+        {status === 'stitching' && progress}
+        {status === 'done' && '✓ パノラマ合成完了'}
       </div>
-      <div style={{
-        position: 'relative', width: '100%', height: '360px',
-        backgroundColor: '#000', borderRadius: '12px', overflow: 'hidden'
-      }}>
-        <video
-          ref={videoRef}
-          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          playsInline muted
-        />
-        <canvas ref={canvasRef} style={{ display: 'none' }} />
-        {isScanning && (
-          <div style={{
-            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-            border: '3px solid #00FF88', borderRadius: '12px',
-            pointerEvents: 'none'
-          }}>
+
+      {status === 'stitching' && (
+        <div style={{
+          textAlign: 'center', padding: '40px',
+          backgroundColor: '#1a1a1a', borderRadius: '12px',
+          marginBottom: '8px', color: '#FF6200', fontSize: '14px'
+        }}>
+          🔄 {progress}
+        </div>
+      )}
+
+      {status !== 'stitching' && (
+        <div style={{
+          position: 'relative', width: '100%', height: '360px',
+          backgroundColor: '#000', borderRadius: '12px', overflow: 'hidden'
+        }}>
+          <video
+            ref={videoRef}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            playsInline muted
+          />
+          <canvas ref={canvasRef} style={{ display: 'none' }} />
+          {isScanning && (
             <div style={{
-              position: 'absolute', top: '10px', left: '50%',
-              transform: 'translateX(-50%)',
-              backgroundColor: 'rgba(0,255,136,0.2)',
-              color: '#00FF88', padding: '4px 12px',
-              borderRadius: '20px', fontSize: '12px', whiteSpace: 'nowrap'
+              position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+              border: '3px solid #00FF88', borderRadius: '12px',
+              pointerEvents: 'none'
             }}>
-              ● REC {frameCount}f
+              <div style={{
+                position: 'absolute', top: '10px', left: '50%',
+                transform: 'translateX(-50%)',
+                backgroundColor: 'rgba(0,255,136,0.2)',
+                color: '#00FF88', padding: '4px 12px',
+                borderRadius: '20px', fontSize: '12px', whiteSpace: 'nowrap'
+              }}>
+                ● REC {frameCount}f
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
-        {!isScanning ? (
+        {!isScanning && status !== 'stitching' ? (
           <button
             onClick={startScan}
             style={{
@@ -134,7 +164,7 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
           >
             🎬 スキャン開始
           </button>
-        ) : (
+        ) : status === 'scanning' ? (
           <button
             onClick={stopScan}
             style={{
@@ -146,7 +176,7 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
           >
             ■ スキャン完了
           </button>
-        )}
+        ) : null}
       </div>
     </div>
   );
