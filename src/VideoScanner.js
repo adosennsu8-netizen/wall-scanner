@@ -5,7 +5,7 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const animFrameRef = useRef(null);
-  const framesRef = useRef([]); // 有効フレームを蓄積
+  const framesRef = useRef([]);
   const [isScanning, setIsScanning] = useState(false);
   const [frameCount, setFrameCount] = useState(0);
   const [status, setStatus] = useState('ready');
@@ -18,22 +18,17 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
       animFrameRef.current = requestAnimationFrame(capture);
       return;
     }
-
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(video, 0, 0);
-
-    // ArUcoが映っているフレームのみ保存
     const result = detectArUco(canvas);
     if (result && result.valid) {
-      // 5フレームに1枚だけ保存（容量節約）
       if (framesRef.current.length % 5 === 0) {
         framesRef.current.push(canvas.toDataURL('image/jpeg', 0.6));
         setFrameCount(framesRef.current.length);
       }
     }
-
     animFrameRef.current = requestAnimationFrame(capture);
   }, []);
 
@@ -43,19 +38,19 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
       video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
     })
     .then((stream) => {
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play().catch(() => {});
+      if (videoEl) {
+        videoEl.srcObject = stream;
+        videoEl.play().catch(() => {});
       }
     })
     .catch(() => alert('カメラの許可が必要です。'));
-
-   return () => {
+    return () => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       if (videoEl && videoEl.srcObject) {
         videoEl.srcObject.getTracks().forEach(t => t.stop());
       }
     };
+  }, []);
 
   const startScan = () => {
     framesRef.current = [];
@@ -69,14 +64,11 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     setIsScanning(false);
     setStatus('done');
-
     if (framesRef.current.length === 0) {
-      alert('有効なフレームが取得できませんでした。カードが映るようにしてください。');
+      alert('有効なフレームが取得できませんでした。');
       setStatus('ready');
       return;
     }
-
-    // 最初のフレームを代表画像として使用
     onComplete && onComplete({
       imageUrl: framesRef.current[0],
       frameCount: framesRef.current.length,
@@ -86,8 +78,6 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
 
   return (
     <div style={{ width: '100%', maxWidth: '480px' }}>
-
-      {/* ステータス */}
       <div style={{
         textAlign: 'center', fontSize: '13px', marginBottom: '8px',
         color: status === 'scanning' ? '#00FF88' : '#aaa'
@@ -96,8 +86,6 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
         {status === 'scanning' && `スキャン中... ${frameCount}フレーム取得`}
         {status === 'done' && `✓ スキャン完了（${frameCount}フレーム）`}
       </div>
-
-      {/* カメラ映像 */}
       <div style={{
         position: 'relative', width: '100%', height: '360px',
         backgroundColor: '#000', borderRadius: '12px', overflow: 'hidden'
@@ -108,8 +96,6 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
           playsInline muted
         />
         <canvas ref={canvasRef} style={{ display: 'none' }} />
-
-        {/* スキャン中のオーバーレイ */}
         {isScanning && (
           <div style={{
             position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
@@ -128,8 +114,6 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
           </div>
         )}
       </div>
-
-      {/* ボタン */}
       <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
         {!isScanning ? (
           <button
