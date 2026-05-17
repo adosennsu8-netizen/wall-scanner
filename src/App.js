@@ -9,21 +9,23 @@ function App() {
   const [cardInfo, setCardInfo] = useState(null);
   const [capturedImage, setCapturedImage] = useState(null);
   const [area, setArea] = useState(null);
-  
 
-  
-
-  // デバッグ用：カードなしで進む
   const handleDebug = () => {
     setCardInfo({ id: 1, pixelsPerCm: 10 });
     setCapturedImage(null);
     setStep('mark');
   };
 
-  // 面積計算完了
- const handleComplete = (result) => {
+  const handleComplete = (result) => {
     setArea(result);
     setStep('result');
+  };
+
+  const reset = () => {
+    setStep('home');
+    setArea(null);
+    setCardInfo(null);
+    setCapturedImage(null);
   };
 
   return (
@@ -41,69 +43,76 @@ function App() {
 
       {/* ホーム画面 */}
       {step === 'home' && (
-        <div style={{ textAlign: 'center' }}>
-          <h1 style={{ fontSize: '24px', marginBottom: '8px' }}>
-            壁面積スキャナー
-          </h1>
+        <div style={{ textAlign: 'center', width: '100%', maxWidth: '300px' }}>
+          <h1 style={{ fontSize: '24px', marginBottom: '8px' }}>壁面積スキャナー</h1>
           <p style={{ color: '#aaa', marginBottom: '40px', fontSize: '14px' }}>
             基準カードをかざして壁の面積を計測します
           </p>
           <button
             onClick={() => setStep('scan')}
             style={{
-              backgroundColor: '#FF6200',
-              color: 'white',
-              border: 'none',
-              borderRadius: '12px',
-              padding: '16px 40px',
-              fontSize: '18px',
-              cursor: 'pointer',
-              display: 'block',
-              width: '100%',
-              maxWidth: '300px',
-              margin: '0 auto'
+              backgroundColor: '#FF6200', color: 'white',
+              border: 'none', borderRadius: '12px',
+              padding: '16px 40px', fontSize: '18px',
+              cursor: 'pointer', display: 'block',
+              width: '100%', marginBottom: '12px'
             }}
           >
             計測を開始する
           </button>
           <button
-            onClick={handleDebug}
+            onClick={() => setStep('video')}
             style={{
-              marginTop: '12px',
-              backgroundColor: 'transparent',
-              color: '#555',
-              border: '1px solid #333',
-              borderRadius: '8px',
-              padding: '8px 20px',
-              cursor: 'pointer',
-              fontSize: '12px'
-            }}
-          >
-            デバッグ：カードなしで進む
-          </button>
-          <button
-            onClick={() => {
-              setStep('home');
-              setTimeout(() => setStep('video'), 300);
-            }}
-            style={{
-              marginTop: '8px',
-              backgroundColor: 'transparent',
-              color: '#555',
-              border: '1px solid #333',
-              borderRadius: '8px',
-              padding: '8px 20px',
-              cursor: 'pointer',
-              fontSize: '12px',
-              display: 'block',
-              width: '100%',
-              maxWidth: '300px',
-              margin: '8px auto 0'
+              backgroundColor: 'transparent', color: '#aaa',
+              border: '1px solid #333', borderRadius: '8px',
+              padding: '10px', fontSize: '14px',
+              cursor: 'pointer', display: 'block',
+              width: '100%', marginBottom: '8px'
             }}
           >
             🎬 動画スキャンモード
           </button>
-          {/* 動画スキャン画面 */}
+          <button
+            onClick={handleDebug}
+            style={{
+              backgroundColor: 'transparent', color: '#555',
+              border: '1px solid #222', borderRadius: '8px',
+              padding: '8px', fontSize: '12px',
+              cursor: 'pointer', display: 'block', width: '100%'
+            }}
+          >
+            デバッグ：カードなしで進む
+          </button>
+        </div>
+      )}
+
+      {/* スキャン画面 */}
+      {step === 'scan' && (
+        <div style={{ width: '100%', maxWidth: '480px', textAlign: 'center' }}>
+          <p style={{ color: '#aaa', fontSize: '13px', marginBottom: '12px' }}>
+            ① カードをホルダーに固定 → ② 枠に合わせる → ③ 認証完了
+          </p>
+          <GuideFrame
+            onCalibrated={(info) => {
+              setCardInfo(info);
+              setStep('mark');
+            }}
+          />
+          <button
+            onClick={() => setStep('home')}
+            style={{
+              marginTop: '16px', backgroundColor: 'transparent',
+              color: '#555', border: '1px solid #333',
+              borderRadius: '8px', padding: '8px 20px',
+              cursor: 'pointer', fontSize: '12px'
+            }}
+          >
+            戻る
+          </button>
+        </div>
+      )}
+
+      {/* 動画スキャン画面 */}
       {step === 'video' && (
         <div style={{ width: '100%', maxWidth: '480px', textAlign: 'center' }}>
           <p style={{ color: '#aaa', fontSize: '13px', marginBottom: '12px' }}>
@@ -120,46 +129,10 @@ function App() {
           <button
             onClick={() => setStep('home')}
             style={{
-              marginTop: '16px',
-              backgroundColor: 'transparent',
-              color: '#555',
-              border: '1px solid #333',
-              borderRadius: '8px',
-              padding: '8px 20px',
-              cursor: 'pointer',
-              fontSize: '12px'
-            }}
-          >
-            戻る
-          </button>
-        </div>
-      )}
-        </div>
-      )}
-
-   {/* スキャン画面 */}
-      {step === 'scan' && (
-        <div style={{ width: '100%', maxWidth: '480px', textAlign: 'center' }}>
-          <p style={{ color: '#aaa', fontSize: '13px', marginBottom: '12px' }}>
-            ① カードをホルダーに固定 → ② 枠に合わせる → ③ 認証完了
-          </p>
-          <GuideFrame
-            onCalibrated={(info) => {
-              setCardInfo(info);
-              setStep('mark');
-            }}
-          />
-          <button
-            onClick={() => setStep('home')}
-            style={{
-              marginTop: '16px',
-              backgroundColor: 'transparent',
-              color: '#555',
-              border: '1px solid #333',
-              borderRadius: '8px',
-              padding: '8px 20px',
-              cursor: 'pointer',
-              fontSize: '12px'
+              marginTop: '16px', backgroundColor: 'transparent',
+              color: '#555', border: '1px solid #333',
+              borderRadius: '8px', padding: '8px 20px',
+              cursor: 'pointer', fontSize: '12px'
             }}
           >
             戻る
@@ -179,16 +152,12 @@ function App() {
             onComplete={handleComplete}
           />
           <button
-            onClick={() => setStep('home')}
+            onClick={reset}
             style={{
-              marginTop: '16px',
-              backgroundColor: 'transparent',
-              color: '#555',
-              border: '1px solid #333',
-              borderRadius: '8px',
-              padding: '8px 20px',
-              cursor: 'pointer',
-              fontSize: '12px'
+              marginTop: '16px', backgroundColor: 'transparent',
+              color: '#555', border: '1px solid #333',
+              borderRadius: '8px', padding: '8px 20px',
+              cursor: 'pointer', fontSize: '12px'
             }}
           >
             最初からやり直す
@@ -196,12 +165,10 @@ function App() {
         </div>
       )}
 
-     {/* 結果画面 */}
+      {/* 結果画面 */}
       {step === 'result' && (
         <div style={{ textAlign: 'center', width: '100%', maxWidth: '480px' }}>
-          <p style={{ color: '#aaa', fontSize: '14px', marginBottom: '8px' }}>
-            計測結果
-          </p>
+          <p style={{ color: '#aaa', fontSize: '14px', marginBottom: '8px' }}>計測結果</p>
           <div style={{ fontSize: '64px', fontWeight: 'bold', color: '#FF6200' }}>
             {area?.net}
           </div>
@@ -209,12 +176,8 @@ function App() {
             ㎡（正味）
           </div>
           <div style={{
-            backgroundColor: '#1a1a1a',
-            borderRadius: '12px',
-            padding: '16px',
-            marginBottom: '20px',
-            border: '1px solid #333',
-            textAlign: 'left'
+            backgroundColor: '#1a1a1a', borderRadius: '12px',
+            padding: '16px', marginBottom: '20px', border: '1px solid #333', textAlign: 'left'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
               <span style={{ color: '#aaa', fontSize: '14px' }}>壁 総面積</span>
@@ -247,17 +210,12 @@ function App() {
             </div>
           </div>
           <button
-            onClick={() => {
-              setStep('home');
-              setArea(null);
-              setCardInfo(null);
-              setCapturedImage(null);
-            }}
+            onClick={reset}
             style={{
-              backgroundColor: '#FF6200',
-              color: 'white', border: 'none',
-              borderRadius: '12px', padding: '14px 40px',
-              fontSize: '16px', cursor: 'pointer', width: '100%'
+              backgroundColor: '#FF6200', color: 'white',
+              border: 'none', borderRadius: '12px',
+              padding: '14px 40px', fontSize: '16px',
+              cursor: 'pointer', width: '100%'
             }}
           >
             もう一度計測する
