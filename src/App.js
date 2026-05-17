@@ -82,7 +82,10 @@ function App() {
             デバッグ：カードなしで進む
           </button>
           <button
-            onClick={() => setStep('video')}
+            onClick={() => {
+              setStep('home');
+              setTimeout(() => setStep('video'), 300);
+            }}
             style={{
               marginTop: '8px',
               backgroundColor: 'transparent',
