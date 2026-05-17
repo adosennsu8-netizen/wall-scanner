@@ -38,6 +38,7 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
   }, []);
 
   useEffect(() => {
+    const videoEl = videoRef.current;
     navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
     })
@@ -49,14 +50,12 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
     })
     .catch(() => alert('カメラの許可が必要です。'));
 
-    return () => {
+   return () => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-      const videoEl = videoRef.current;
       if (videoEl && videoEl.srcObject) {
         videoEl.srcObject.getTracks().forEach(t => t.stop());
       }
     };
-  }, []);
 
   const startScan = () => {
     framesRef.current = [];
