@@ -106,7 +106,7 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
 
     let panorama = frames[0].dataURL;
     try {
-      const response = await fetch('/api/stitch', {
+      const response = await fetch('https://wall-scanner-api-1.onrender.com/api/stitch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ frames: selectedFrames })
