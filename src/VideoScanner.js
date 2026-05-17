@@ -88,13 +88,15 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
       addLog(msg);
     });
 
-    setStatus('done');
-    addLog('→ onCompleteを呼び出し');
-    onComplete && onComplete({
-      imageUrl: panorama,
-      frameCount: frames.length,
-      pixelsPerCm
-    });
+   setStatus('done');
+    addLog('→ 3秒後に次の画面へ');
+    setTimeout(() => {
+      onComplete && onComplete({
+        imageUrl: panorama,
+        frameCount: frames.length,
+        pixelsPerCm
+      });
+    }, 3000);
   };
 
   return (
