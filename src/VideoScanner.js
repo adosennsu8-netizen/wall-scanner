@@ -1,5 +1,4 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { detectArUco } from './ArUcoDetector';
 
 function VideoScanner({ pixelsPerCm, onComplete }) {
   const videoRef = useRef(null);
@@ -23,11 +22,8 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(video, 0, 0);
-    // ArUcoが映っていなくてもフレームを保存（テスト用）
-    if (framesRef.current.length % 5 === 0) {
-      framesRef.current.push(canvas.toDataURL('image/jpeg', 0.6));
-      setFrameCount(framesRef.current.length);
-    }
+    framesRef.current.push(canvas.toDataURL('image/jpeg', 0.5));
+    setFrameCount(framesRef.current.length);
     animFrameRef.current = requestAnimationFrame(capture);
   }, []);
 
@@ -68,17 +64,16 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
   const stopScan = () => {
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     setIsScanning(false);
-    setStatus('done');
-    if (framesRef.current.length === 0) {
-      alert('フレームが取得できませんでした。もう一度試してください。');
+    const frames = framesRef.current;
+    if (!frames || frames.length === 0) {
+      alert('フレームが取得できませんでした。');
       setStatus('ready');
       return;
     }
-    // 取得フレーム数をログ
-    console.log('取得フレーム数:', framesRef.current.length);
+    setStatus('done');
     onComplete && onComplete({
-      imageUrl: framesRef.current[0],
-      frameCount: framesRef.current.length,
+      imageUrl: frames[Math.floor(frames.length / 2)],
+      frameCount: frames.length,
       pixelsPerCm
     });
   };
@@ -94,9 +89,9 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
         textAlign: 'center', fontSize: '13px', marginBottom: '8px',
         color: status === 'scanning' ? '#00FF88' : '#aaa'
       }}>
-        {status === 'ready' && 'カードを固定してスキャン開始を押してください'}
-        {status === 'scanning' && `スキャン中... ${frameCount}フレーム取得`}
-        {status === 'done' && `✓ スキャン完了（${frameCount}フレーム）`}
+        {status === 'ready' && 'スキャン開始を押してください'}
+        {status === 'scanning' && `スキャン中... ${frameCount}フレーム`}
+        {status === 'done' && `✓ 完了（${frameCount}フレーム）`}
       </div>
       <div style={{
         position: 'relative', width: '100%', height: '360px',
