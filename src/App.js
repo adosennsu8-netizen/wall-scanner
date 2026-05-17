@@ -1,5 +1,4 @@
-import { useState, useRef } from 'react';
-import Camera from './Camera';
+import { useState } from 'react';
 import WallMarker from './WallMarker';
 import GuideFrame from './GuideFrame';
 import './App.css';
@@ -9,13 +8,9 @@ function App() {
   const [cardInfo, setCardInfo] = useState(null);
   const [capturedImage, setCapturedImage] = useState(null);
   const [area, setArea] = useState(null);
-  const videoRef = useRef(null);
+  
 
-  // カード検出されたら写真を撮って次へ
-  const handleDetected = (result) => {
-    setCardInfo(result);
-    // 撮影ボタンを押すまで待つ
-  };
+  
 
   // デバッグ用：カードなしで進む
   const handleDebug = () => {
