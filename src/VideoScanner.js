@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { startMotionTracking, stopMotionTracking, stitchFrames } from './Panorama';
+import { startMotionTracking, stopMotionTracking } from './Panorama';
 
 function VideoScanner({ pixelsPerCm, onComplete }) {
   const videoRef = useRef(null);
@@ -93,12 +93,34 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
     setStatus('stitching');
     addLog(`フレーム数: ${frames.length}枚`);
 
-    const panorama = await stitchFrames(
-      frames,
-      motionLog,
-      pixelsPerCm,
-      (msg) => addLog(msg)
-    );
+  addLog('サーバーに送信中...');
+
+    // フレームを間引く（最大15枚）
+    const step = Math.max(1, Math.floor(frames.length / 15));
+    const selectedFrames = frames
+      .filter((_, i) => i % step === 0)
+      .slice(0, 15)
+      .map(f => f.dataURL);
+
+    addLog(`${selectedFrames.length}枚をサーバーへ送信...`);
+
+    let panorama = frames[0].dataURL;
+    try {
+      const response = await fetch('/api/stitch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ frames: selectedFrames })
+      });
+      const result = await response.json();
+      if (result.status === 'ok') {
+        panorama = result.image;
+        addLog(`合成完了！(${result.count}枚)`);
+      } else {
+        addLog('合成失敗 → 最初のフレームを使用');
+      }
+    } catch (err) {
+      addLog('通信エラー: ' + err.message);
+    }
 
     setStatus('done');
     addLog('完了');
