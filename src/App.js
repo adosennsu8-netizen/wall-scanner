@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import Camera from './Camera';
 import WallMarker from './WallMarker';
+import GuideFrame from './GuideFrame';
 import './App.css';
 
 function App() {
@@ -87,33 +88,29 @@ function App() {
         </div>
       )}
 
-      {/* スキャン画面 */}
+   {/* スキャン画面 */}
       {step === 'scan' && (
         <div style={{ width: '100%', maxWidth: '480px', textAlign: 'center' }}>
-          <p style={{ color: '#FF6200', fontSize: '14px', marginBottom: '12px' }}>
-            基準カードをカメラに向けてください
+          <p style={{ color: '#aaa', fontSize: '13px', marginBottom: '12px' }}>
+            ① カードをホルダーに固定 → ② 枠に合わせる → ③ 認証完了
           </p>
-          <Camera
-            onDetected={handleDetected}
-            onPhoto={(url) => {
-              setCapturedImage(url);
-              if (cardInfo) setStep('mark');
+          <GuideFrame
+            onCalibrated={(info) => {
+              setCardInfo(info);
+              setStep('mark');
             }}
           />
-          <p style={{ color: cardInfo ? '#00FF88' : '#aaa', fontSize: '12px', marginTop: '12px' }}>
-            {cardInfo ? '✓ カード認証完了！撮影ボタンを押してください' : 'カードを検出すると自動で次へ進みます'}
-          </p>
           <button
             onClick={() => setStep('home')}
             style={{
-              marginTop: '20px',
+              marginTop: '16px',
               backgroundColor: 'transparent',
-              color: '#aaa',
-              border: '1px solid #aaa',
+              color: '#555',
+              border: '1px solid #333',
               borderRadius: '8px',
-              padding: '10px 24px',
+              padding: '8px 20px',
               cursor: 'pointer',
-              fontSize: '14px'
+              fontSize: '12px'
             }}
           >
             戻る
