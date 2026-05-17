@@ -49,7 +49,7 @@ export const stitchFrames = async (frames, onProgress) => {
   try {
     onProgress && onProgress('OpenCV読み込み待機中...');
     await waitForOpenCV();
-    onProgress && onProgress('OpenCV ✓ 特徴点検出開始...');
+    onProgress && onProgress('OpenCV ✓ ORB:' + (typeof cv.ORB) + ' BFMatcher:' + (typeof cv.BFMatcher));
   } catch (err) {
     onProgress && onProgress('OpenCV読み込み失敗: ' + err.message);
     return frames[0];
