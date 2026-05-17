@@ -109,8 +109,8 @@ export const stitchFrames = async (frames, onProgress) => {
     goodMatches.forEach(m => {
       const p1 = kp1.get(m.queryIdx).pt;
       const p2 = kp2.get(m.trainIdx).pt;
-      srcPts.push(p1.x, p1.y);
-      dstPts.push(p2.x, p2.y);
+      srcPts.push(p2.x, p2.y);
+      dstPts.push(p1.x, p1.y);
     });
 
     const srcMat = cv.matFromArray(goodMatches.length, 1, cv.CV_32FC2, srcPts);
@@ -125,7 +125,7 @@ export const stitchFrames = async (frames, onProgress) => {
     const w = frame1.cols + frame2.cols;
     const h = Math.max(frame1.rows, frame2.rows);
     const warped = new cv.Mat();
-    cv.warpPerspective(frame1, warped, H, new cv.Size(w, h));
+    cv.warpPerspective(frame2, warped, H, new cv.Size(w, h));
 
     // 結果canvasに描画
     const resultCanvas = document.createElement('canvas');
@@ -133,20 +133,19 @@ export const stitchFrames = async (frames, onProgress) => {
     resultCanvas.height = h;
     const ctx = resultCanvas.getContext('2d');
 
-    // まずwarpedを描画
+    // frame1を左側に描画
+    const frame1Canvas = document.createElement('canvas');
+    frame1Canvas.width = frame1.cols;
+    frame1Canvas.height = frame1.rows;
+    cv.imshow(frame1Canvas, frame1);
+    ctx.drawImage(frame1Canvas, 0, 0);
+
+    // warpedを右側に描画
     const warpedCanvas = document.createElement('canvas');
     warpedCanvas.width = warped.cols;
     warpedCanvas.height = warped.rows;
     cv.imshow(warpedCanvas, warped);
-    ctx.drawImage(warpedCanvas, 0, 0);
-
-    // frame2を右側に描画
-    const frame2Canvas = document.createElement('canvas');
-    frame2Canvas.width = frame2.cols;
-    frame2Canvas.height = frame2.rows;
-    cv.imshow(frame2Canvas, frame2);
-    ctx.drawImage(frame2Canvas, frame1.cols, 0);
-
+    ctx.drawImage(warpedCanvas, frame1.cols, 0);
     const resultURL = resultCanvas.toDataURL('image/jpeg', 0.8);
 
     frame1.delete(); frame2.delete();

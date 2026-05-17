@@ -96,7 +96,7 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
         frameCount: frames.length,
         pixelsPerCm
       });
-    }, 30000);
+    }, 3000);
   };
 
   return (
