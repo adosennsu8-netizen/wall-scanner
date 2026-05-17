@@ -9,6 +9,7 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
   const [isScanning, setIsScanning] = useState(false);
   const [frameCount, setFrameCount] = useState(0);
   const [status, setStatus] = useState('ready');
+  const [errorMsg, setErrorMsg] = useState('');
 
   const capture = useCallback(() => {
     const video = videoRef.current;
@@ -34,16 +35,22 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
 
   useEffect(() => {
     const videoEl = videoRef.current;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setErrorMsg('このブラウザはカメラに対応していません');
+      return;
+    }
     navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+      video: { facingMode: 'environment' }
     })
     .then((stream) => {
       if (videoEl) {
         videoEl.srcObject = stream;
-        videoEl.play().catch(() => {});
+        videoEl.play().catch((e) => setErrorMsg('play error: ' + e.message));
       }
     })
-    .catch(() => alert('カメラの許可が必要です。'));
+    .catch((err) => {
+      setErrorMsg(err.name + ': ' + err.message);
+    });
     return () => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       if (videoEl && videoEl.srcObject) {
@@ -78,6 +85,11 @@ function VideoScanner({ pixelsPerCm, onComplete }) {
 
   return (
     <div style={{ width: '100%', maxWidth: '480px' }}>
+      {errorMsg && (
+        <div style={{ color: 'red', fontSize: '12px', marginBottom: '8px', textAlign: 'center' }}>
+          {errorMsg}
+        </div>
+      )}
       <div style={{
         textAlign: 'center', fontSize: '13px', marginBottom: '8px',
         color: status === 'scanning' ? '#00FF88' : '#aaa'
