@@ -74,6 +74,8 @@ function App() {
             }}
           >
             ✨ スマートスキャン（新）
+              </button>
+          <button
             onClick={() => setStep('video')}
             style={{
               backgroundColor: 'transparent', color: '#aaa',
