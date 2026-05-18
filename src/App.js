@@ -190,6 +190,7 @@ function App() {
         </div>
       )}
 
+      {step === 'smart' && (() => { if (!cardInfo) setCardInfo({ id: 1, pixelsPerCm: 7 }); return null; })()}
       {step === 'smart' && (
         <div style={{ width: '100%', maxWidth: '480px', textAlign: 'center' }}>
           <p style={{ color: '#00FF88', fontSize: '13px', marginBottom: '12px' }}>
