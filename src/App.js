@@ -43,12 +43,11 @@ function App() {
       padding: '20px'
     }}>
 
-      {/* ホーム画面 */}
       {step === 'home' && (
         <div style={{ textAlign: 'center', width: '100%', maxWidth: '300px' }}>
           <h1 style={{ fontSize: '24px', marginBottom: '8px' }}>壁面積スキャナー</h1>
           <p style={{ color: '#aaa', marginBottom: '40px', fontSize: '14px' }}>
-            基準カードをかざして壁の面積を計測します
+            基準カードをかざして壁の面積を測定します
           </p>
           <button
             onClick={() => setStep('scan')}
@@ -60,10 +59,10 @@ function App() {
               width: '100%', marginBottom: '12px'
             }}
           >
-            計測を開始する
+            測定を開始する
           </button>
           <button
-          onClick={() => setStep('smart')}
+            onClick={() => setStep('smart')}
             style={{
               backgroundColor: '#00FF88', color: '#000',
               border: 'none', borderRadius: '12px',
@@ -74,8 +73,8 @@ function App() {
             }}
           >
             ✨ スマートスキャン（新）
-              </button>
-            <button
+          </button>
+          <button
             onClick={() => setStep('video')}
             style={{
               backgroundColor: 'transparent', color: '#aaa',
@@ -85,7 +84,7 @@ function App() {
               width: '100%', marginBottom: '8px'
             }}
           >
-            🎬 動画スキャンモード
+            動画スキャンモード
           </button>
           <button
             onClick={() => setStep('multi')}
@@ -97,7 +96,7 @@ function App() {
               width: '100%', marginBottom: '8px'
             }}
           >
-            📷 複数枚合算モード
+            複数枚合算モード
           </button>
           <button
             onClick={handleDebug}
@@ -108,16 +107,15 @@ function App() {
               cursor: 'pointer', display: 'block', width: '100%'
             }}
           >
-            デバッグ：カードなしで進む
+            デバッグ（カードなしで進む）
           </button>
         </div>
       )}
 
-      {/* スキャン画面 */}
       {step === 'scan' && (
         <div style={{ width: '100%', maxWidth: '480px', textAlign: 'center' }}>
           <p style={{ color: '#aaa', fontSize: '13px', marginBottom: '12px' }}>
-            ① カードをホルダーに固定 → ② 枠に合わせる → ③ 認証完了
+            カードをホルダーに固定 → 枠に合わせる → 認証完了
           </p>
           <GuideFrame
             onCalibrated={(info) => {
@@ -139,7 +137,6 @@ function App() {
         </div>
       )}
 
-      {/* 動画スキャン画面 */}
       {step === 'video' && (
         <div style={{ width: '100%', maxWidth: '480px', textAlign: 'center' }}>
           <p style={{ color: '#aaa', fontSize: '13px', marginBottom: '12px' }}>
@@ -167,7 +164,6 @@ function App() {
         </div>
       )}
 
-      {/* 複数枚合算画面 */}
       {step === 'multi' && (
         <div style={{ width: '100%', maxWidth: '480px', textAlign: 'center' }}>
           <p style={{ color: '#aaa', fontSize: '13px', marginBottom: '12px' }}>
@@ -193,19 +189,27 @@ function App() {
           </button>
         </div>
       )}
-{/* スマートスキャン画面 */}
-      {step === 'smart' && cardInfo && (
+
+      {step === 'smart' && (
         <div style={{ width: '100%', maxWidth: '480px', textAlign: 'center' }}>
           <p style={{ color: '#00FF88', fontSize: '13px', marginBottom: '12px' }}>
             ✨ スマートスキャン
           </p>
-          <SmartScan
-            pixelsPerCm={cardInfo.pixelsPerCm}
-            onComplete={(result) => {
-              setArea(result);
-              setStep('result');
-            }}
-          />
+          {!cardInfo ? (
+            <GuideFrame
+              onCalibrated={(info) => {
+                setCardInfo(info);
+              }}
+            />
+          ) : (
+            <SmartScan
+              pixelsPerCm={cardInfo.pixelsPerCm}
+              onComplete={(result) => {
+                setArea(result);
+                setStep('result');
+              }}
+            />
+          )}
           <button
             onClick={reset}
             style={{
@@ -219,11 +223,11 @@ function App() {
           </button>
         </div>
       )}
-      {/* マーク画面 */}
+
       {step === 'mark' && cardInfo && (
         <div style={{ width: '100%', maxWidth: '480px', textAlign: 'center' }}>
           <p style={{ color: '#00FF88', fontSize: '13px', marginBottom: '16px' }}>
-            ✓ カード認証完了（ID: {cardInfo.id}）
+            カード認証完了（ID: {cardInfo.id}）
           </p>
           <WallMarker
             imageUrl={capturedImage}
@@ -244,28 +248,27 @@ function App() {
         </div>
       )}
 
-      {/* 結果画面 */}
       {step === 'result' && (
         <div style={{ textAlign: 'center', width: '100%', maxWidth: '480px' }}>
-          <p style={{ color: '#aaa', fontSize: '14px', marginBottom: '8px' }}>計測結果</p>
+          <p style={{ color: '#aaa', fontSize: '14px', marginBottom: '8px' }}>測定結果</p>
           <div style={{ fontSize: '64px', fontWeight: 'bold', color: '#FF6200' }}>
             {area?.net}
           </div>
           <div style={{ fontSize: '24px', color: '#aaa', marginBottom: '20px' }}>
-            ㎡（正味）
+            m²（正味）
           </div>
           <div style={{
             backgroundColor: '#1a1a1a', borderRadius: '12px',
             padding: '16px', marginBottom: '20px', border: '1px solid #333', textAlign: 'left'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-              <span style={{ color: '#aaa', fontSize: '14px' }}>壁 総面積</span>
-              <span style={{ color: 'white', fontSize: '14px' }}>{area?.wall} ㎡</span>
+              <span style={{ color: '#aaa', fontSize: '14px' }}>壁の総面積</span>
+              <span style={{ color: 'white', fontSize: '14px' }}>{area?.wall} m²</span>
             </div>
             {area?.excludeCount > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
                 <span style={{ color: '#FF6200', fontSize: '14px' }}>除外（{area?.excludeCount}箇所）</span>
-                <span style={{ color: '#FF6200', fontSize: '14px' }}>− {area?.exclude} ㎡</span>
+                <span style={{ color: '#FF6200', fontSize: '14px' }}>-{area?.exclude} m²</span>
               </div>
             )}
             <div style={{
@@ -273,12 +276,12 @@ function App() {
               paddingTop: '10px', borderTop: '1px solid #333', marginBottom: '10px'
             }}>
               <span style={{ color: 'white', fontSize: '14px', fontWeight: 'bold' }}>正味面積</span>
-              <span style={{ color: '#FF6200', fontSize: '14px', fontWeight: 'bold' }}>{area?.net} ㎡</span>
+              <span style={{ color: '#FF6200', fontSize: '14px', fontWeight: 'bold' }}>{area?.net} m²</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
               <span style={{ color: '#aaa', fontSize: '13px' }}>壁紙必要量（+10%）</span>
               <span style={{ color: 'white', fontSize: '13px' }}>
-                {(parseFloat(area?.net) * 1.1).toFixed(2)} ㎡
+                {(parseFloat(area?.net) * 1.1).toFixed(2)} m²
               </span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -297,7 +300,7 @@ function App() {
               cursor: 'pointer', width: '100%'
             }}
           >
-            もう一度計測する
+            もう一度測定する
           </button>
         </div>
       )}
