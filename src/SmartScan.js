@@ -16,6 +16,7 @@ function SmartScan({ pixelsPerCm: initialPpc, onComplete }) {
   const lastAccelZRef = useRef(null);
 
   useEffect(() => {
+    if (phase !== 'shooting') return;
     const videoEl = videoRef.current;
     navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
@@ -26,7 +27,7 @@ function SmartScan({ pixelsPerCm: initialPpc, onComplete }) {
       if (videoEl && videoEl.srcObject)
         videoEl.srcObject.getTracks().forEach(t => t.stop());
     };
-  }, []);
+  }, [phase]);
 
   useEffect(() => {
     const handleMotion = (e) => {
