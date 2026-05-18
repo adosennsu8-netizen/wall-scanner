@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { detectArUco } from './ArUcoDetector';
 
-const CARD_WIDTH_CM = 21.8;
+const CARD_WIDTH_CM = 21.0;
 const CARD_HEIGHT_CM = 29.7;
-const HOLD_FRAMES = 30; // 約1秒キープで認証
+const HOLD_FRAMES = 5;
 
 function GuideFrame({ onCalibrated }) {
   const [status, setStatus] = useState('waiting');
@@ -12,9 +12,8 @@ function GuideFrame({ onCalibrated }) {
   const canvasRef = useRef(null);
   const animFrameRef = useRef(null);
   const holdCountRef = useRef(0);
-  const statusRef = useRef('waiting');
+  const doneRef = useRef(false);
 
-  // 認証音
   const playBeep = () => {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const osc = ctx.createOscillator();
@@ -29,6 +28,7 @@ function GuideFrame({ onCalibrated }) {
   };
 
   const detect = useCallback(() => {
+    if (doneRef.current) return;
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas) return;
@@ -43,38 +43,23 @@ function GuideFrame({ onCalibrated }) {
     ctx.drawImage(video, 0, 0);
 
     const result = detectArUco(canvas);
-     console.log('検出結果:', result);
 
     if (result && result.valid) {
-      // カード検出された
-      if (statusRef.current === 'waiting') {
-        statusRef.current = 'aligned';
-        setStatus('aligned');
-      }
       holdCountRef.current += 1;
       setHoldCount(holdCountRef.current);
+      setStatus('aligned');
 
-      // HOLD_FRAMES分キープで自動認証
-      if (holdCountRef.current >= HOLD_FRAMES && statusRef.current !== 'done') {
-        statusRef.current = 'done';
+      if (holdCountRef.current >= HOLD_FRAMES) {
+        doneRef.current = true;
         setStatus('done');
         playBeep();
-       const calibData = {
+        console.log('onCalibrated呼び出し:', result);
+        onCalibrated && onCalibrated({
           pixelsPerCm: result.pixelsPerCm,
           cardWidthCm: CARD_WIDTH_CM,
           cardHeightCm: CARD_HEIGHT_CM
-        };
-        console.log('onCalibrated呼び出し:', calibData);
-        onCalibrated && onCalibrated(calibData);
+        });
         return;
-      }
-    } else {
-      // カードが外れた
-      if (statusRef.current === 'aligned') {
-        statusRef.current = 'waiting';
-        setStatus('waiting');
-        holdCountRef.current = 0;
-        setHoldCount(0);
       }
     }
 
@@ -94,9 +79,9 @@ function GuideFrame({ onCalibrated }) {
         };
       }
     })
-    .catch(() => alert('カメラの許可が必要です。'));
-const videoEl = videoRef.current;
-   return () => {
+    .catch(() => alert('カメラの許可が必要です'));
+    const videoEl = videoRef.current;
+    return () => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       if (videoEl && videoEl.srcObject) {
         videoEl.srcObject.getTracks().forEach(t => t.stop());
@@ -108,81 +93,36 @@ const videoEl = videoRef.current;
 
   return (
     <div style={{ position: 'relative', width: '100%', maxWidth: '480px' }}>
-
-      {/* ガイドテキスト */}
       <div style={{
-        textAlign: 'center',
-        padding: '8px',
-        fontSize: '13px',
+        textAlign: 'center', padding: '8px', fontSize: '13px',
         color: status === 'aligned' ? '#00FF88' : status === 'done' ? '#00BFFF' : '#FF6200',
         marginBottom: '8px'
       }}>
         {status === 'waiting' && 'カードを枠の中に合わせてください'}
-        {status === 'aligned' && `✓ 検出中... ${progress}%`}
-        {status === 'done' && '✓ 認証完了！'}
+        {status === 'aligned' && `読み取り中... ${progress}%`}
+        {status === 'done' && '✅ 認証完了！'}
       </div>
-
-      {/* カメラ映像 */}
       <div style={{
-        position: 'relative',
-        width: '100%',
-        height: '360px',
-        backgroundColor: '#000',
-        borderRadius: '12px',
-        overflow: 'hidden'
+        position: 'relative', width: '100%', height: '360px',
+        backgroundColor: '#000', borderRadius: '12px', overflow: 'hidden'
       }}>
-        <video
-          ref={videoRef}
-          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          playsInline
-          muted
-        />
+        <video ref={videoRef} style={{ width: '100%', height: '100%', objectFit: 'cover' }} playsInline muted />
         <canvas ref={canvasRef} style={{ display: 'none' }} />
-
-        {/* 固定枠 */}
         <div style={{
-          position: 'absolute',
-          bottom: '20px',
-          left: '50%',
+          position: 'absolute', bottom: '20px', left: '50%',
           transform: 'translateX(-50%)',
-          width: '148px',
-          height: '210px',
+          width: '210px', height: '297px',
           border: `3px solid ${status === 'done' ? '#00BFFF' : status === 'aligned' ? '#00FF88' : '#FF6200'}`,
-          borderRadius: '4px',
-          boxSizing: 'border-box',
-          transition: 'border-color 0.2s'
-        }}>
-          <div style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            color: status === 'aligned' ? '#00FF88' : '#FF6200',
-            fontSize: '11px',
-            textAlign: 'center',
-            whiteSpace: 'nowrap'
-          }}>
-            {CARD_WIDTH_CM}cm × {CARD_HEIGHT_CM}cm
-          </div>
-        </div>
-
-        {/* プログレスバー */}
+          borderRadius: '4px', boxSizing: 'border-box'
+        }} />
         {status === 'aligned' && (
           <div style={{
-            position: 'absolute',
-            bottom: '8px',
-            left: '10%',
-            width: '80%',
-            height: '4px',
-            backgroundColor: '#333',
-            borderRadius: '2px'
+            position: 'absolute', bottom: '8px', left: '10%',
+            width: '80%', height: '4px', backgroundColor: '#333', borderRadius: '2px'
           }}>
             <div style={{
-              width: `${progress}%`,
-              height: '100%',
-              backgroundColor: '#00FF88',
-              borderRadius: '2px',
-              transition: 'width 0.05s'
+              width: `${progress}%`, height: '100%',
+              backgroundColor: '#00FF88', borderRadius: '2px'
             }} />
           </div>
         )}
