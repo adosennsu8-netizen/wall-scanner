@@ -3,6 +3,7 @@ import WallMarker from './WallMarker';
 import GuideFrame from './GuideFrame';
 import VideoScanner from './VideoScanner';
 import MultiScan from './MultiScan';
+import SmartScan from './SmartScan';
 import './App.css';
 
 function App() {
@@ -62,6 +63,17 @@ function App() {
             計測を開始する
           </button>
           <button
+          onClick={() => setStep('smart')}
+            style={{
+              backgroundColor: '#00FF88', color: '#000',
+              border: 'none', borderRadius: '12px',
+              padding: '16px 40px', fontSize: '18px',
+              cursor: 'pointer', display: 'block',
+              width: '100%', marginBottom: '12px',
+              fontWeight: 'bold'
+            }}
+          >
+            ✨ スマートスキャン（新）
             onClick={() => setStep('video')}
             style={{
               backgroundColor: 'transparent', color: '#aaa',
@@ -179,7 +191,32 @@ function App() {
           </button>
         </div>
       )}
-
+{/* スマートスキャン画面 */}
+      {step === 'smart' && cardInfo && (
+        <div style={{ width: '100%', maxWidth: '480px', textAlign: 'center' }}>
+          <p style={{ color: '#00FF88', fontSize: '13px', marginBottom: '12px' }}>
+            ✨ スマートスキャン
+          </p>
+          <SmartScan
+            pixelsPerCm={cardInfo.pixelsPerCm}
+            onComplete={(result) => {
+              setArea(result);
+              setStep('result');
+            }}
+          />
+          <button
+            onClick={reset}
+            style={{
+              marginTop: '16px', backgroundColor: 'transparent',
+              color: '#555', border: '1px solid #333',
+              borderRadius: '8px', padding: '8px 20px',
+              cursor: 'pointer', fontSize: '12px'
+            }}
+          >
+            戻る
+          </button>
+        </div>
+      )}
       {/* マーク画面 */}
       {step === 'mark' && cardInfo && (
         <div style={{ width: '100%', maxWidth: '480px', textAlign: 'center' }}>
