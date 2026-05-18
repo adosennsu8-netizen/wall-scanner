@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { detectArUco } from './ArUcoDetector';
 
-const CARD_WIDTH_CM = 14.8;
-const CARD_HEIGHT_CM = 21.0;
+const CARD_WIDTH_CM = 21.8;
+const CARD_HEIGHT_CM = 29.7;
 const HOLD_FRAMES = 30; // 約1秒キープで認証
 
 function GuideFrame({ onCalibrated }) {
