@@ -43,6 +43,7 @@ function GuideFrame({ onCalibrated }) {
     ctx.drawImage(video, 0, 0);
 
     const result = detectArUco(canvas);
+     console.log('検出結果:', result);
 
     if (result && result.valid) {
       // カード検出された
@@ -58,11 +59,13 @@ function GuideFrame({ onCalibrated }) {
         statusRef.current = 'done';
         setStatus('done');
         playBeep();
-        onCalibrated && onCalibrated({
+       const calibData = {
           pixelsPerCm: result.pixelsPerCm,
           cardWidthCm: CARD_WIDTH_CM,
           cardHeightCm: CARD_HEIGHT_CM
-        });
+        };
+        console.log('onCalibrated呼び出し:', calibData);
+        onCalibrated && onCalibrated(calibData);
         return;
       }
     } else {
