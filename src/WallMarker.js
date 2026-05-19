@@ -71,7 +71,7 @@ function WallMarker({ imageUrl, pixelsPerCm, onComplete }) {
     }
   };
 
-  useEffect(() => { draw(); }, [wallPath, excludeZones, currentPath, imageObj, mode]);
+  useEffect(() => { draw(); }, [wallPath, excludeZones, currentPath, imageObj, mode, draw]);
 
   const getPos = (e) => {
     const canvas = canvasRef.current;
