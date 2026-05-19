@@ -7,13 +7,62 @@ function WallMarker({ imageUrl, pixelsPerCm, onComplete }) {
   const [wallPoints, setWallPoints] = useState([]);
   const [excludeZones, setExcludeZones] = useState([]);
   const [currentExclude, setCurrentExclude] = useState([]);
+  const [autoStatus, setAutoStatus] = useState('idle'); // idle, loading, done, failed
 
   useEffect(() => {
     if (!imageUrl) return;
     const img = new Image();
-    img.onload = () => setImageObj(img);
+    img.onload = () => {
+      setImageObj(img);
+      autoDetectWall(imageUrl);
+    };
     img.src = imageUrl;
   }, [imageUrl]);
+
+  const autoDetectWall = async (url) => {
+    setAutoStatus('loading');
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          messages: [{
+            role: 'user',
+            content: [
+              {
+                type: 'image',
+                source: { type: 'url', url }
+              },
+              {
+                type: 'text',
+                text: `この画像の壁の領域を検出してください。
+床・天井・窓・ドアを除いた「壁の面」の頂点座標を返してください。
+画像サイズは800x450ピクセルとして正規化した座標で返してください。
+必ずJSON形式のみで返してください。他のテキストは不要です。
+形式: {"points": [{"x": 数値, "y": 数値}, ...]}`
+              }
+            ]
+          }]
+        })
+      });
+      const data = await response.json();
+      const text = data.content?.[0]?.text || '';
+      const clean = text.replace(/```json|```/g, '').trim();
+      const parsed = JSON.parse(clean);
+      if (parsed.points && parsed.points.length >= 3) {
+        setWallPoints(parsed.points);
+        setMode('exclude');
+        setAutoStatus('done');
+      } else {
+        setAutoStatus('failed');
+      }
+    } catch (e) {
+      console.error(e);
+      setAutoStatus('failed');
+    }
+  };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -22,26 +71,17 @@ function WallMarker({ imageUrl, pixelsPerCm, onComplete }) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (imageObj) {
       ctx.drawImage(imageObj, 0, 0, canvas.width, canvas.height);
-    } else {
-      ctx.fillStyle = '#222';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = '#444';
-      ctx.font = '14px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('壁の角をタップして囲んでください', canvas.width / 2, canvas.height / 2);
     }
     if (wallPoints.length > 0) {
       ctx.beginPath();
       ctx.moveTo(wallPoints[0].x, wallPoints[0].y);
       wallPoints.forEach(p => ctx.lineTo(p.x, p.y));
-      if (mode !== 'wall') ctx.closePath();
+      ctx.closePath();
       ctx.strokeStyle = '#00BFFF';
       ctx.lineWidth = 2;
       ctx.stroke();
-      if (mode !== 'wall' && wallPoints.length > 2) {
-        ctx.fillStyle = 'rgba(0,191,255,0.1)';
-        ctx.fill();
-      }
+      ctx.fillStyle = 'rgba(0,191,255,0.1)';
+      ctx.fill();
       wallPoints.forEach((p, i) => {
         ctx.beginPath();
         ctx.arc(p.x, p.y, 7, 0, Math.PI * 2);
@@ -134,38 +174,88 @@ function WallMarker({ imageUrl, pixelsPerCm, onComplete }) {
 
   return (
     <div style={{ width: '100%', maxWidth: '480px' }}>
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-        <button
-          onClick={() => setMode('wall')}
-          style={{
-            flex: 1, padding: '8px',
-            backgroundColor: mode === 'wall' ? '#00BFFF' : 'transparent',
-            color: mode === 'wall' ? 'white' : '#aaa',
-            border: `1px solid ${mode === 'wall' ? '#00BFFF' : '#333'}`,
-            borderRadius: '8px', cursor: 'pointer', fontSize: '13px'
-          }}
-        >
-          壁を囲む
-        </button>
-        <button
-          onClick={() => setMode('exclude')}
-          disabled={wallPoints.length < 3}
-          style={{
-            flex: 1, padding: '8px',
-            backgroundColor: mode === 'exclude' ? '#FF6200' : 'transparent',
-            color: mode === 'exclude' ? 'white' : wallPoints.length < 3 ? '#555' : '#aaa',
-            border: `1px solid ${mode === 'exclude' ? '#FF6200' : '#333'}`,
-            borderRadius: '8px', cursor: wallPoints.length < 3 ? 'default' : 'pointer', fontSize: '13px'
-          }}
-        >
-          除外ゾーン
-        </button>
-      </div>
+
+      {/* AI認識ステータス */}
+      {autoStatus === 'loading' && (
+        <div style={{
+          textAlign: 'center', padding: '12px',
+          backgroundColor: '#1a1a1a', borderRadius: '8px',
+          marginBottom: '8px', color: '#00FF88', fontSize: '13px'
+        }}>
+          🤖 AIが壁を自動認識中...
+        </div>
+      )}
+      {autoStatus === 'done' && (
+        <div style={{
+          textAlign: 'center', padding: '8px',
+          color: '#00FF88', fontSize: '13px', marginBottom: '8px'
+        }}>
+          ✅ 壁を自動認識しました。除外ゾーンを指定してください。
+        </div>
+      )}
+      {autoStatus === 'failed' && (
+        <div style={{
+          textAlign: 'center', padding: '8px',
+          color: '#FF6200', fontSize: '13px', marginBottom: '8px'
+        }}>
+          ⚠️ 自動認識失敗。手動で壁を囲んでください。
+        </div>
+      )}
+
+      {/* モード切替（手動時のみ表示） */}
+      {(autoStatus === 'failed' || autoStatus === 'idle') && (
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+          <button
+            onClick={() => setMode('wall')}
+            style={{
+              flex: 1, padding: '8px',
+              backgroundColor: mode === 'wall' ? '#00BFFF' : 'transparent',
+              color: mode === 'wall' ? 'white' : '#aaa',
+              border: `1px solid ${mode === 'wall' ? '#00BFFF' : '#333'}`,
+              borderRadius: '8px', cursor: 'pointer', fontSize: '13px'
+            }}
+          >
+            壁を囲む
+          </button>
+          <button
+            onClick={() => setMode('exclude')}
+            disabled={wallPoints.length < 3}
+            style={{
+              flex: 1, padding: '8px',
+              backgroundColor: mode === 'exclude' ? '#FF6200' : 'transparent',
+              color: mode === 'exclude' ? 'white' : wallPoints.length < 3 ? '#555' : '#aaa',
+              border: `1px solid ${mode === 'exclude' ? '#FF6200' : '#333'}`,
+              borderRadius: '8px', cursor: 'pointer', fontSize: '13px'
+            }}
+          >
+            除外ゾーン
+          </button>
+        </div>
+      )}
+
+      {/* AI認識成功時は除外ゾーンボタンのみ */}
+      {autoStatus === 'done' && (
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+          <button
+            onClick={() => setMode('exclude')}
+            style={{
+              flex: 1, padding: '8px',
+              backgroundColor: '#FF6200', color: 'white',
+              border: 'none', borderRadius: '8px',
+              cursor: 'pointer', fontSize: '13px'
+            }}
+          >
+            除外ゾーンを追加
+          </button>
+        </div>
+      )}
+
       <p style={{ color: '#aaa', fontSize: '12px', marginBottom: '8px', textAlign: 'center' }}>
         {mode === 'wall'
-          ? `壁の角をタップ（${wallPoints.length}点）`
-          : `除外したい箇所をタップ（${currentExclude.length}点）確定済み：${excludeZones.length}箇所`}
+          ? `壁の輪郭をタップ（${wallPoints.length}点）`
+          : `除外したい箇所をタップ（${currentExclude.length}点）確定済み:${excludeZones.length}箇所`}
       </p>
+
       <canvas
         ref={canvasRef}
         width={800}
@@ -173,6 +263,7 @@ function WallMarker({ imageUrl, pixelsPerCm, onComplete }) {
         onClick={handleTap}
         style={{ width: '100%', borderRadius: '12px', cursor: 'crosshair', border: '1px solid #333' }}
       />
+
       <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
         {mode === 'wall' ? (
           <>
@@ -194,7 +285,7 @@ function WallMarker({ imageUrl, pixelsPerCm, onComplete }) {
                 flex: 2, padding: '10px',
                 backgroundColor: wallPoints.length >= 3 ? '#FF6200' : '#333',
                 color: 'white', border: 'none', borderRadius: '8px',
-                cursor: wallPoints.length >= 3 ? 'pointer' : 'default', fontSize: '13px'
+                cursor: 'pointer', fontSize: '13px'
               }}
             >
               面積を計算する
@@ -220,7 +311,7 @@ function WallMarker({ imageUrl, pixelsPerCm, onComplete }) {
                 flex: 1, padding: '10px',
                 backgroundColor: currentExclude.length >= 3 ? '#FF6200' : '#333',
                 color: 'white', border: 'none', borderRadius: '8px',
-                cursor: currentExclude.length >= 3 ? 'pointer' : 'default', fontSize: '13px'
+                cursor: 'pointer', fontSize: '13px'
               }}
             >
               除外確定
