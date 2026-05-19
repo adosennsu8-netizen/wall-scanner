@@ -1,6 +1,8 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useRef, useState, useEffect, useCallback } from 'react';
 
+const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY;
+
 function WallMarker({ imageUrl, pixelsPerCm, onComplete }) {
   const canvasRef = useRef(null);
   const [imageObj, setImageObj] = useState(null);
@@ -10,13 +12,68 @@ function WallMarker({ imageUrl, pixelsPerCm, onComplete }) {
   const [currentPath, setCurrentPath] = useState([]);
   const [isDrawing, setIsDrawing] = useState(false);
   const [wallConfirmed, setWallConfirmed] = useState(false);
+  const [autoStatus, setAutoStatus] = useState('idle');
 
   useEffect(() => {
     if (!imageUrl) return;
     const img = new Image();
-    img.onload = () => setImageObj(img);
+    img.onload = () => {
+      setImageObj(img);
+      autoDetectWall(imageUrl);
+    };
     img.src = imageUrl;
   }, [imageUrl]);
+
+  const autoDetectWall = async (url) => {
+    setAutoStatus('loading');
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const base64 = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result.split(',')[1]);
+        reader.readAsDataURL(blob);
+      });
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                {
+                  inline_data: {
+                    mime_type: 'image/jpeg',
+                    data: base64
+                  }
+                },
+                {
+                  text: `この画像の壁の領域を検出してください。床・天井・窓・ドア・家具を除いた「壁の面」の輪郭の頂点座標を返してください。画像サイズは幅800px、高さ450pxとして正規化した座標で返してください。必ずJSON形式のみで返してください。他のテキストは不要です。形式: {"points": [{"x": 数値, "y": 数値}, ...]}`
+                }
+              ]
+            }]
+          })
+        }
+      );
+      const data = await response.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const clean = text.replace(/```json|```/g, '').trim();
+      const parsed = JSON.parse(clean);
+      if (parsed.points && parsed.points.length >= 3) {
+        setWallPath(parsed.points);
+        setWallConfirmed(true);
+        setMode('exclude');
+        setAutoStatus('done');
+      } else {
+        setAutoStatus('failed');
+      }
+    } catch (e) {
+      console.error(e);
+      setAutoStatus('failed');
+    }
+  };
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -69,9 +126,7 @@ function WallMarker({ imageUrl, pixelsPerCm, onComplete }) {
     }
   }, [wallPath, excludeZones, currentPath, imageObj, mode]);
 
-  useEffect(() => {
-    draw();
-  }, [draw]);
+  useEffect(() => { draw(); }, [draw]);
 
   const getPos = (e) => {
     const canvas = canvasRef.current;
@@ -88,8 +143,7 @@ function WallMarker({ imageUrl, pixelsPerCm, onComplete }) {
   const onStart = (e) => {
     e.preventDefault();
     setIsDrawing(true);
-    const pos = getPos(e);
-    setCurrentPath([pos]);
+    setCurrentPath([getPos(e)]);
   };
 
   const onMove = (e) => {
@@ -153,6 +207,33 @@ function WallMarker({ imageUrl, pixelsPerCm, onComplete }) {
 
   return (
     <div style={{ width: '100%', maxWidth: '480px' }}>
+
+      {autoStatus === 'loading' && (
+        <div style={{
+          textAlign: 'center', padding: '12px',
+          backgroundColor: '#1a1a1a', borderRadius: '8px',
+          marginBottom: '8px', color: '#00FF88', fontSize: '13px'
+        }}>
+          🤖 AIが壁を自動認識中...
+        </div>
+      )}
+      {autoStatus === 'done' && (
+        <div style={{
+          textAlign: 'center', padding: '8px',
+          color: '#00FF88', fontSize: '13px', marginBottom: '8px'
+        }}>
+          ✅ 壁を自動認識しました
+        </div>
+      )}
+      {autoStatus === 'failed' && (
+        <div style={{
+          textAlign: 'center', padding: '8px',
+          color: '#FF6200', fontSize: '13px', marginBottom: '8px'
+        }}>
+          ⚠️ 自動認識失敗。手動でなぞってください
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
         <button
           onClick={() => setMode('wall')}
@@ -182,7 +263,7 @@ function WallMarker({ imageUrl, pixelsPerCm, onComplete }) {
 
       <p style={{ color: '#aaa', fontSize: '12px', marginBottom: '8px', textAlign: 'center' }}>
         {mode === 'wall'
-          ? wallConfirmed ? '✅ 壁を認識済み。除外ゾーンを追加するか計算してください' : '壁の輪郭を指でなぞってください'
+          ? wallConfirmed ? '✅ 壁認識済み。除外ゾーンを追加するか計算してください' : '壁の輪郭を指でなぞってください'
           : `除外ゾーンをなぞる（確定済み:${excludeZones.length}箇所）`}
       </p>
 
