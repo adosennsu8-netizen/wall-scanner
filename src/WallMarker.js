@@ -1,4 +1,6 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useRef, useState, useEffect, useCallback } from 'react';
+
 function WallMarker({ imageUrl, pixelsPerCm, onComplete }) {
   const canvasRef = useRef(null);
   const [imageObj, setImageObj] = useState(null);
@@ -24,7 +26,6 @@ function WallMarker({ imageUrl, pixelsPerCm, onComplete }) {
 
     if (imageObj) ctx.drawImage(imageObj, 0, 0, canvas.width, canvas.height);
 
-    // 壁の塗りつぶし
     if (wallPath.length > 2) {
       ctx.beginPath();
       ctx.moveTo(wallPath[0].x, wallPath[0].y);
@@ -37,7 +38,6 @@ function WallMarker({ imageUrl, pixelsPerCm, onComplete }) {
       ctx.stroke();
     }
 
-    // 除外ゾーン
     excludeZones.forEach((zone, zi) => {
       if (zone.length < 2) return;
       ctx.beginPath();
@@ -57,7 +57,6 @@ function WallMarker({ imageUrl, pixelsPerCm, onComplete }) {
       ctx.fillText(`除外${zi + 1}`, cx, cy);
     });
 
-    // 描画中のパス
     if (currentPath.length > 1) {
       ctx.beginPath();
       ctx.moveTo(currentPath[0].x, currentPath[0].y);
@@ -70,7 +69,9 @@ function WallMarker({ imageUrl, pixelsPerCm, onComplete }) {
     }
   }, [wallPath, excludeZones, currentPath, imageObj, mode]);
 
-  useEffect(() => { draw(); }, [wallPath, excludeZones, currentPath, imageObj, mode]);
+  useEffect(() => {
+    draw();
+  }, [draw]);
 
   const getPos = (e) => {
     const canvas = canvasRef.current;
@@ -152,8 +153,6 @@ function WallMarker({ imageUrl, pixelsPerCm, onComplete }) {
 
   return (
     <div style={{ width: '100%', maxWidth: '480px' }}>
-
-      {/* モード切替 */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
         <button
           onClick={() => setMode('wall')}
