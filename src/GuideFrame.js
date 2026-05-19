@@ -1,13 +1,16 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { detectArUco } from './ArUcoDetector';
 
 const CARD_WIDTH_CM = 9.1;
 const CARD_HEIGHT_CM = 5.5;
 const HOLD_FRAMES = 5;
+const ALIGN_TOLERANCE = 0.15; // 枠サイズの15%以内のズレを許容
 
 function GuideFrame({ onCalibrated }) {
   const [status, setStatus] = useState('waiting');
   const [holdCount, setHoldCount] = useState(0);
+  const [message, setMessage] = useState('カードを枠の中に合わせてください');
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const animFrameRef = useRef(null);
@@ -25,6 +28,31 @@ function GuideFrame({ onCalibrated }) {
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + 0.3);
+  };
+
+  const isAlignedWithFrame = (corners, canvasWidth, canvasHeight) => {
+    // 枠の位置（GuideFrameの固定枠と同じ位置）
+    const frameW = 182;
+    const frameH = 110;
+    const frameLeft = (canvasWidth - frameW) / 2;
+    const frameTop = canvasHeight - 20 - frameH;
+    const frameRight = frameLeft + frameW;
+    const frameBottom = frameTop + frameH;
+
+    const tolerance = frameW * ALIGN_TOLERANCE;
+
+    // カードの4隅
+    const cardLeft = Math.min(...corners.map(c => c.x));
+    const cardRight = Math.max(...corners.map(c => c.x));
+    const cardTop = Math.min(...corners.map(c => c.y));
+    const cardBottom = Math.max(...corners.map(c => c.y));
+
+    return (
+      Math.abs(cardLeft - frameLeft) < tolerance &&
+      Math.abs(cardRight - frameRight) < tolerance &&
+      Math.abs(cardTop - frameTop) < tolerance &&
+      Math.abs(cardBottom - frameBottom) < tolerance
+    );
   };
 
   const detect = useCallback(() => {
@@ -45,22 +73,37 @@ function GuideFrame({ onCalibrated }) {
     const result = detectArUco(canvas);
 
     if (result && result.valid) {
-      holdCountRef.current += 1;
-      setHoldCount(holdCountRef.current);
-      setStatus('aligned');
+      const aligned = isAlignedWithFrame(result.corners, canvas.width, canvas.height);
 
-      if (holdCountRef.current >= HOLD_FRAMES) {
-        doneRef.current = true;
-        setStatus('done');
-        playBeep();
-        console.log('onCalibrated呼び出し:', result);
-        onCalibrated && onCalibrated({
-          pixelsPerCm: result.pixelsPerCm,
-          cardWidthCm: CARD_WIDTH_CM,
-          cardHeightCm: CARD_HEIGHT_CM
-        });
-        return;
+      if (aligned) {
+        holdCountRef.current += 1;
+        setHoldCount(holdCountRef.current);
+        setStatus('aligned');
+        setMessage(`読み取り中... ${Math.round((holdCountRef.current / HOLD_FRAMES) * 100)}%`);
+
+        if (holdCountRef.current >= HOLD_FRAMES) {
+          doneRef.current = true;
+          setStatus('done');
+          setMessage('✅ 認証完了！');
+          playBeep();
+          onCalibrated && onCalibrated({
+            pixelsPerCm: result.pixelsPerCm,
+            cardWidthCm: CARD_WIDTH_CM,
+            cardHeightCm: CARD_HEIGHT_CM
+          });
+          return;
+        }
+      } else {
+        holdCountRef.current = 0;
+        setHoldCount(0);
+        setStatus('waiting');
+        setMessage('枠にぴったり合わせてください');
       }
+    } else {
+      holdCountRef.current = 0;
+      setHoldCount(0);
+      setStatus('waiting');
+      setMessage('カードを枠の中に合わせてください');
     }
 
     animFrameRef.current = requestAnimationFrame(detect);
@@ -98,9 +141,7 @@ function GuideFrame({ onCalibrated }) {
         color: status === 'aligned' ? '#00FF88' : status === 'done' ? '#00BFFF' : '#FF6200',
         marginBottom: '8px'
       }}>
-        {status === 'waiting' && 'カードを枠の中に合わせてください'}
-        {status === 'aligned' && `読み取り中... ${progress}%`}
-        {status === 'done' && '✅ 認証完了！'}
+        {message}
       </div>
       <div style={{
         position: 'relative', width: '100%', height: '360px',
