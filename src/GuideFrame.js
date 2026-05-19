@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { detectArUco } from './ArUcoDetector';
 
-const CARD_WIDTH_CM = 21.0;
-const CARD_HEIGHT_CM = 29.7;
+const CARD_WIDTH_CM = 9.1;
+const CARD_HEIGHT_CM = 5.5;
 const HOLD_FRAMES = 5;
 
 function GuideFrame({ onCalibrated }) {
@@ -111,7 +111,7 @@ function GuideFrame({ onCalibrated }) {
         <div style={{
           position: 'absolute', bottom: '20px', left: '50%',
           transform: 'translateX(-50%)',
-          width: '210px', height: '297px',
+          width: '182px', height: '110px',
           border: `3px solid ${status === 'done' ? '#00BFFF' : status === 'aligned' ? '#00FF88' : '#FF6200'}`,
           borderRadius: '4px', boxSizing: 'border-box'
         }} />

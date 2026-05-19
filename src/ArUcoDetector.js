@@ -2,9 +2,9 @@ const AR = require('js-aruco2').AR;
 
 const detector = new AR.Detector();
 
-const VALID_IDS = [1, 2, 3, 4, 5];
-const CARD_WIDTH_CM = 21.0;
-const CARD_HEIGHT_CM = 29.7;
+const VALID_IDS = Array.from({length: 256}, (_, i) => i);
+const CARD_WIDTH_CM = 9.1;
+const CARD_HEIGHT_CM = 5.5;
 
 function detectArUco(canvas) {
   const ctx = canvas.getContext('2d');
