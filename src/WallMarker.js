@@ -1,5 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
-
+import { useRef, useState, useEffect, useCallback } from 'react';
 function WallMarker({ imageUrl, pixelsPerCm, onComplete }) {
   const canvasRef = useRef(null);
   const [imageObj, setImageObj] = useState(null);
@@ -17,7 +16,7 @@ function WallMarker({ imageUrl, pixelsPerCm, onComplete }) {
     img.src = imageUrl;
   }, [imageUrl]);
 
-  const draw = () => {
+  const draw = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -69,9 +68,9 @@ function WallMarker({ imageUrl, pixelsPerCm, onComplete }) {
       ctx.stroke();
       ctx.setLineDash([]);
     }
-  };
+  }, [wallPath, excludeZones, currentPath, imageObj, mode]);
 
-  useEffect(() => { draw(); }, [wallPath, excludeZones, currentPath, imageObj, mode, draw]);
+  useEffect(() => { draw(); }, [wallPath, excludeZones, currentPath, imageObj, mode]);
 
   const getPos = (e) => {
     const canvas = canvasRef.current;
