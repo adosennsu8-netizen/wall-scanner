@@ -47,11 +47,13 @@ function GuideFrame({ onCalibrated }) {
     const cardTop = Math.min(...corners.map(c => c.y));
     const cardBottom = Math.max(...corners.map(c => c.y));
 
+   const cardCenterX = (cardLeft + cardRight) / 2;
+    const cardCenterY = (cardTop + cardBottom) / 2;
+    const frameCenterX = (frameLeft + frameRight) / 2;
+    const frameCenterY = (frameTop + frameBottom) / 2;
     return (
-      Math.abs(cardLeft - frameLeft) < tolerance &&
-      Math.abs(cardRight - frameRight) < tolerance &&
-      Math.abs(cardTop - frameTop) < tolerance &&
-      Math.abs(cardBottom - frameBottom) < tolerance
+      Math.abs(cardCenterX - frameCenterX) < frameW * 0.5 &&
+      Math.abs(cardCenterY - frameCenterY) < frameH * 0.5
     );
   };
 
