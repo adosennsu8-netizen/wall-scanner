@@ -5,7 +5,7 @@ import { detectArUco } from './ArUcoDetector';
 const CARD_WIDTH_CM = 9.1;
 const CARD_HEIGHT_CM = 5.5;
 const HOLD_FRAMES = 5;
-const ALIGN_TOLERANCE = 0.15; // 枠サイズの15%以内のズレを許容
+const ALIGN_TOLERANCE = 0.5; // 枠サイズの15%以内のズレを許容
 
 function GuideFrame({ onCalibrated }) {
   const [status, setStatus] = useState('waiting');
