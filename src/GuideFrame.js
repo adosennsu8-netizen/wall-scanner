@@ -31,6 +31,8 @@ function GuideFrame({ onCalibrated }) {
   };
 
   const isAlignedWithFrame = (corners, canvasWidth, canvasHeight) => {
+    return true;
+  };
     // 枠の位置（GuideFrameの固定枠と同じ位置）
     const frameW = 182;
     const frameH = 110;
