@@ -234,7 +234,7 @@ function SmartScan({ pixelsPerCm: initialPpc, onComplete }) {
               cursor: 'pointer', fontSize: '12px'
             }}
           >
-            キャンセル
+            撮り直す
           </button>
         </div>
       )}
