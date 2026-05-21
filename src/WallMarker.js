@@ -14,12 +14,16 @@ function WallMarker({ imageUrl, pixelsPerCm, onComplete }) {
   const [wallConfirmed, setWallConfirmed] = useState(false);
   const [autoStatus, setAutoStatus] = useState('idle');
 
+ const autoCalledRef = useRef(false);
   useEffect(() => {
     if (!imageUrl) return;
     const img = new Image();
     img.onload = () => {
       setImageObj(img);
-      autoDetectWall(imageUrl);
+      if (!autoCalledRef.current) {
+        autoCalledRef.current = true;
+        autoDetectWall(imageUrl);
+      }
     };
     img.src = imageUrl;
   }, [imageUrl]);
@@ -59,6 +63,12 @@ function WallMarker({ imageUrl, pixelsPerCm, onComplete }) {
       );
       const data = await response.json();
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      console.log('Gemini response:', text);
+      if (!text) {
+        console.error('Empty response:', data);
+        setAutoStatus('failed');
+        return;
+      }
       const clean = text.replace(/```json|```/g, '').trim();
       const parsed = JSON.parse(clean);
       if (parsed.points && parsed.points.length >= 3) {
