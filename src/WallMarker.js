@@ -224,9 +224,7 @@ function WallMarker({ imageUrl, pixelsPerCm, onComplete }) {
       </p>
       <canvas
         ref={canvasRef} width={800} height={450}
-        git add src/WallMarker.js src/SmartScan.js
-        git commit -m "Fix: 除外ゾーン重複・撮り直しボタン修正"
-        git push origin master
+        
         style={{ width: '100%', borderRadius: '12px', border: '1px solid #333', touchAction: 'none' }}
       />
       <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
