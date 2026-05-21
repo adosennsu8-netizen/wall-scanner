@@ -224,7 +224,8 @@ function WallMarker({ imageUrl, pixelsPerCm, onComplete }) {
       </p>
       <canvas
         ref={canvasRef} width={800} height={450}
-        
+        onMouseDown={onStart} onMouseMove={onMove} onMouseUp={onEnd} onMouseLeave={onEnd}
+        onTouchStart={onStart} onTouchMove={onMove} onTouchEnd={onEnd} onTouchCancel={onEnd}
         style={{ width: '100%', borderRadius: '12px', border: '1px solid #333', touchAction: 'none' }}
       />
       <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
