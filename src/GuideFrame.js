@@ -60,7 +60,8 @@ function GuideFrame({ onCalibrated }) {
         onCalibrated && onCalibrated({
           pixelsPerCm: result.pixelsPerCm,
           cardWidthCm: CARD_WIDTH_CM,
-          cardHeightCm: CARD_HEIGHT_CM
+          cardHeightCm: CARD_HEIGHT_CH,
+          corners: result.corners
         });
         return;
       }

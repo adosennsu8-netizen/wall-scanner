@@ -3,7 +3,7 @@ import WallMarker from './WallMarker';
 
 const EDGE_RATIO = 0.15;
 
-function SmartScan({ pixelsPerCm: initialPpc, onComplete }) {
+function SmartScan({ pixelsPerCm: initialPpc, corners, onComplete }) {
   const [phase, setPhase] = useState('shooting');
   const [shots, setShots] = useState([]);
   const [capturedImage, setCapturedImage] = useState(null);
@@ -15,7 +15,11 @@ function SmartScan({ pixelsPerCm: initialPpc, onComplete }) {
   const distanceOffsetRef = useRef(0);
   const lastAccelZRef = useRef(null);
   const calibDataRef = useRef(null);
-
+  useEffect(() => {
+    if (corners) {
+      calibDataRef.current = { corners, pixelsPerCm: initialPpc };
+    }
+  }, [corners, initialPpc]);
   useEffect(() => {
     if (phase !== 'shooting') return;
     const videoEl = videoRef.current;

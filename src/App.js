@@ -205,6 +205,7 @@ function App() {
           ) : (
             <SmartScan
               pixelsPerCm={cardInfo.pixelsPerCm}
+              corners={cardInfo.corners}
               onComplete={(result) => {
                 setArea(result);
                 setStep('result');
