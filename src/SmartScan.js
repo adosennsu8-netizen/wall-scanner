@@ -14,6 +14,7 @@ function SmartScan({ pixelsPerCm: initialPpc, onComplete }) {
   const canvasRef = useRef(null);
   const distanceOffsetRef = useRef(0);
   const lastAccelZRef = useRef(null);
+  const calibDataRef = useRef(null);
 
   useEffect(() => {
     if (phase !== 'shooting') return;
@@ -46,11 +47,37 @@ function SmartScan({ pixelsPerCm: initialPpc, onComplete }) {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas) return;
-
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(video, 0, 0);
+
+    // 透視補正
+    try {
+      if (window.cv && window.cv.Mat && calibDataRef.current) {
+        const { corners, pixelsPerCm } = calibDataRef.current;
+        const w = Math.round(9.1 * pixelsPerCm);
+        const h = Math.round(5.5 * pixelsPerCm);
+        const srcPts = window.cv.matFromArray(4, 1, window.cv.CV_32FC2, [
+          corners[0].x, corners[0].y,
+          corners[1].x, corners[1].y,
+          corners[2].x, corners[2].y,
+          corners[3].x, corners[3].y
+        ]);
+        const dstPts = window.cv.matFromArray(4, 1, window.cv.CV_32FC2, [
+          0, 0, w, 0, w, h, 0, h
+        ]);
+        const src = window.cv.imread(canvas);
+        const dst = new window.cv.Mat();
+        const M = window.cv.getPerspectiveTransform(srcPts, dstPts);
+        const dsize = new window.cv.Size(canvas.width, canvas.height);
+        window.cv.warpPerspective(src, dst, M, dsize);
+        window.cv.imshow(canvas, dst);
+        src.delete(); dst.delete(); M.delete(); srcPts.delete(); dstPts.delete();
+      }
+    } catch(e) {
+      console.log('透視補正スキップ:', e.message);
+    }
 
     // 右端をゴーストとして保存
     const edgeW = Math.floor(canvas.width * EDGE_RATIO);
