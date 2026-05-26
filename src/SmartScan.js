@@ -56,9 +56,9 @@ function SmartScan({ pixelsPerCm: initialPpc, corners, onComplete }) {
     const ctx = canvas.getContext('2d');
     ctx.drawImage(video, 0, 0);
 
-    // 透視補正
+    // 透視補正（一時無効化）
     try {
-      if (window.cv && window.cv.Mat && calibDataRef.current) {
+      if (false && window.cv && window.cv.Mat && calibDataRef.current) {
         const { corners, pixelsPerCm } = calibDataRef.current;
         const w = Math.round(9.1 * pixelsPerCm);
         const h = Math.round(5.5 * pixelsPerCm);
