@@ -56,25 +56,50 @@ function SmartScan({ pixelsPerCm: initialPpc, corners, onComplete }) {
     const ctx = canvas.getContext('2d');
     ctx.drawImage(video, 0, 0);
 
-    // 透視補正（一時無効化）
+  // 透視補正
     try {
-      if (false && window.cv && window.cv.Mat && calibDataRef.current) {
-        const { corners, pixelsPerCm } = calibDataRef.current;
-        const w = Math.round(9.1 * pixelsPerCm);
-        const h = Math.round(5.5 * pixelsPerCm);
+      if (window.cv && window.cv.Mat && calibDataRef.current) {
+        const { corners } = calibDataRef.current;
+        const W = canvas.width;
+        const H = canvas.height;
+
+        // カードの傾きから補正行列を計算
         const srcPts = window.cv.matFromArray(4, 1, window.cv.CV_32FC2, [
           corners[0].x, corners[0].y,
           corners[1].x, corners[1].y,
           corners[2].x, corners[2].y,
           corners[3].x, corners[3].y
         ]);
+
+        // カードの横幅・縦幅をピクセルで計算
+        const cardW = Math.sqrt(
+          Math.pow(corners[1].x - corners[0].x, 2) +
+          Math.pow(corners[1].y - corners[0].y, 2)
+        );
+        const cardH = Math.sqrt(
+          Math.pow(corners[3].x - corners[0].x, 2) +
+          Math.pow(corners[3].y - corners[0].y, 2)
+        );
+
+        // カードの実際のアスペクト比（9.1:5.5）で補正後の座標を計算
+        const aspect = 9.1 / 5.5;
+        const correctedH = cardW / aspect;
+
+        // カードの左上を基準に補正後の4隅を設定
+        const cx = corners[0].x;
+        const cy = corners[0].y;
+
         const dstPts = window.cv.matFromArray(4, 1, window.cv.CV_32FC2, [
-          0, 0, w, 0, w, h, 0, h
+          cx, cy,
+          cx + cardW, cy,
+          cx + cardW, cy + correctedH,
+          cx, cy + correctedH
         ]);
+
         const src = window.cv.imread(canvas);
         const dst = new window.cv.Mat();
         const M = window.cv.getPerspectiveTransform(srcPts, dstPts);
-        const dsize = new window.cv.Size(canvas.width, canvas.height);
+        const dsize = new window.cv.Size(W, H);
         window.cv.warpPerspective(src, dst, M, dsize);
         window.cv.imshow(canvas, dst);
         src.delete(); dst.delete(); M.delete(); srcPts.delete(); dstPts.delete();
